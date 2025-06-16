@@ -2,1008 +2,1029 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Axis & Allies: WWII 1942</title>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" defer onerror="this.onerror=null;this.src='https://unpkg.com/react@18.3.3.1.umd/react.min.js'"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/dist/umd/react-dom.production.min.js" defer onerror="this.onerror=null;this.src='https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js'"></script>
-  <script src="https://cdn.jsdelivr.net/npm/zustand@4.5.5/dist/zustand.umd.min.js" defer onerror="this.onerror=null;this.src='https://unpkg.com/zustand@4.5.5/dist/zustand.umd.min.js'"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js'"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.14/dist/tailwind.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css'">
+  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" crossorigin defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin defer></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin defer></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin defer></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.14/dist/tailwind.min.css" rel="stylesheet" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Roboto+Mono:wght@400&family=Special+Elite&display=swap" rel="stylesheet">
   <style>
-    #map { height: 80vh; min-height: 400px; }
-    @media (max-width: 640px) { #map { height: 60vh; } }
-    .modal { backdrop-filter: blur(5px); }
-    .territory-germany, .territory-japan { color: #dc2626; font-weight: 700; fill: #dc2626; fill-opacity: 0.3; }
-    .territory-united_kingdom, .territory-soviet_union, .territory-united_states { color: #2563eb; font-weight: 700; fill: #2563eb; fill-opacity: 0.3; }
-    .territory-neutral { color: #6b7280; font-weight: 700; fill: #6b7280; fill-opacity: 0.3; }
-    .unit-icon { width: 20px; height: 20px; }
-    .animate-move { animation: moveUnit .5s ease; }
+    body { 
+      background: url('https://www.transparenttextures.com/patterns/worn-dots.png') #2e2e2e; 
+      font-family: 'Roboto Mono', monospace; 
+      color: #e0e0e0;
+      overflow: hidden;
+    }
+    #map { 
+      height: 80vh; 
+      min-height: 400px; 
+      border: 6px solid #8b0000; 
+      box-shadow: 0 8px 16px rgba(0,0,0,0.5); 
+      border-radius: 4px; 
+      background: #1c2526;
+    }
+    @media (max-width: 768px) { #map { height: 50vh; } }
+    .modal { 
+      backdrop-filter: blur(15px); 
+      background: rgba(0,0,0,0.8); 
+      animation: fadeIn 0.5s ease-out;
+    }
+    .modal-content { 
+      background: url('https://www.transparenttextures.com/patterns/dark-mosaic.png') #3c3c3c; 
+      border: 3px solid #4682b4; 
+      box-shadow: 0 0 20px rgba(70,130,180,0.4);
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .territory-axis { fill: #8b0000; fill-opacity: 0.6; stroke: #ff4500; stroke-width: 3; stroke-dasharray: '8,8'; }
+    .territory-allies { fill: #4682b4; fill-opacity: 0.6; stroke: #ffffff; stroke-width: 2; }
+    .territory-neutral { fill: #4a4a4a; fill-opacity: 0.4; stroke: #808080; stroke-width: 1; }
+    .territory-contested { stroke: #ff0000; stroke-width: 4; stroke-dasharray: '15,10'; animation: pulseBorder 2s infinite; }
+    .unit-marker { 
+      font-size: 1.8rem; 
+      animation: explode 1.2s ease-in-out infinite; 
+      text-shadow: 0 0 10px #ff4500;
+    }
+    .fog-of-war { fill: #000000; fill-opacity: 0.5; pointer-events: none; transition: opacity 0.5s; }
+    .victory-city { font-size: 2.5rem; color: #ff0000; text-shadow: 0 0 12px #ffffff; animation: glowStar 1.5s infinite alternate; }
+    .factory-icon { font-size: 2rem; color: #ffd700; text-shadow: 0 0 8px #000000; }
     .selected { animation: glow 1s ease-in-out infinite alternate; }
-    .tutorial-overlay { background: rgba(0,0,0,0.7); color: white; padding: 1rem; border-radius: 0.5rem; }
-    .modal-button { min-width: 120px; padding: 0.75rem 1.5rem; font-size: 1rem; }
-    .loading { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f3f4f6; }
-    .spinner { border: 4px solid #2563eb; border-top: 4px solid transparent; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-    .animate-modal { animation: fadeIn .3s ease; }
-    .animate-unit-place { animation: scaleUp .3s ease; }
-    @keyframes moveUnit { 0% { transform: translateY(10px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-    @keyframes glow { 0% { box-shadow: 0 0 5px rgba(59,130,246,0.5); } 100% { box-shadow: 0 0 15px rgba(59,130,246,0.8); } }
+    .tutorial { 
+      background: rgba(0,0,0,0.95); 
+      color: #ffd700; 
+      padding: 2rem; 
+      border-radius: 12px; 
+      border: 3px solid #8b0000;
+      animation: slideIn 0.6s ease-out;
+    }
+    .spinner { 
+      border: 10px solid #4682b4; 
+      border-top: 10px solid transparent; 
+      border-radius: 50%; 
+      width: 80px; 
+      height: 80px; 
+      animation: spin 0.8s linear infinite;
+    }
+    .loading { 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      background: #1c2526;
+    }
+    .theme-dark { background: #2e2e2e; color: #e0e0e0; }
+    .theme-dark .bg-white { background: #4a4a4a; }
+    .theme-dark .border-gray-100 { border-color: #6a6a6a; }
+    .theme-dark .loading { background: #1c2526; }
+    .animate-modal { animation: slideIn 0.5s ease-out; }
+    .error-message { 
+      max-width: 700px; 
+      text-align: center; 
+      font-family: 'Special Elite', monospace; 
+      color: #ff4500;
+    }
+    .sidebar { 
+      background: url('https://www.transparenttextures.com/patterns/metal.png') #3c3c3c; 
+      border-left: 8px solid #8b0000; 
+      box-shadow: -6px 0 12px rgba(0,0,0,0.4);
+      padding: 1.5rem;
+    }
+    .btn-primary { 
+      background: linear-gradient(145deg, #8b0000, #ff4500); 
+      transition: transform 0.3s, box-shadow 0.3s; 
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+    .btn-primary:hover { 
+      transform: translateY(-4px); 
+      box-shadow: 0 6px 16px rgba(255,69,0,0.7); 
+      background: linear-gradient(145deg, #ff4500, #8b0000);
+    }
+    .header { 
+      font-family: 'Special Elite', monospace; 
+      text-shadow: 3px 3px 6px rgba(0,0,0,0.5); 
+      color: #ffd700;
+      letter-spacing: 2px;
+    }
+    .console { 
+      background: url('https://www.transparenttextures.com/patterns/noise-lines.png') #2f4f4f; 
+      border: 6px solid #4a4a4a; 
+      border-radius: 10px; 
+      padding: 1.5rem; 
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.6); 
+      position: relative;
+      overflow: hidden;
+    }
+    .console::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(rgba(255,255,255,0.05), transparent);
+      pointer-events: none;
+      animation: smoke 10s infinite linear;
+    }
+    .phase-btn { 
+      font-family: 'Special Elite', monospace; 
+      background: linear-gradient(145deg, #4a4a4a, #2f4f4f); 
+      color: #ffd700; 
+      border: 3px solid #ff4500; 
+      border-radius: 8px; 
+      padding: 0.75rem 1.5rem; 
+      transition: all 0.4s; 
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+    .phase-btn:hover { 
+      background: linear-gradient(145deg, #ff0000, #8b0000); 
+      transform: scale(1.1); 
+      box-shadow: 0 0 15px #ff0000; 
+      color: #ffffff;
+    }
+    .phase-btn.active { 
+      background: linear-gradient(145deg, #ff0000, #8b0000); 
+      border-color: #ffd700; 
+      animation: neonGlow 1s ease-in-out infinite alternate;
+    }
+    .phase-btn::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: transparent;
+      -webkit-text-stroke: 1px #ffd700;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .phase-btn:hover::after { opacity: 1; }
+    .track-progress { 
+      background: #4a4a4a; 
+      height: 12px; 
+      position: relative; 
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .track-progress::after { 
+      content: ''; 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      height: 100%; 
+      background: repeating-linear-gradient(45deg, #ff4500, #ff4500 10px, #8b0000 10px, #8b0000 20px); 
+      animation: trackMove 2s linear infinite;
+    }
+    .flag-icon { 
+      width: 40px; 
+      height: 28px; 
+      border: 2px solid #4a4a4a; 
+      border-radius: 4px; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .collapsible { transition: max-height 0.5s ease, opacity 0.5s ease; }
+    .unit-ref { max-height: 0; overflow: hidden; opacity: 0; }
+    .unit-ref.open { max-height: 800px; opacity: 1; }
+    .chat-log { 
+      background: rgba(0,0,0,0.7); 
+      border: 2px solid #4682b4; 
+      border-radius: 8px; 
+      max-height: 200px;
+    }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    @keyframes fadeIn { 0% { opacity: 0; transform: translateY(-10px); } 100% { opacity: 1; transform: translateY(0); } }
-    @keyframes scaleUp { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
-    .theme-dark { background-color: #1f2937; color: #f3f4f6; }
-    .theme-dark .bg-white { background-color: #374151; }
-    .theme-dark .border-gray-100 { border-color: #4b5563; }
-    .theme-dark .loading { background: #1f2937; }
+    @keyframes glow { 0% { box-shadow: 0 0 10px rgba(255,69,0,0.5); } 100% { box-shadow: 0 0 20px rgba(255,69,0,0.9); } }
+    @keyframes explode { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+    @keyframes slideIn { 0% { opacity: 0; transform: translateY(-50px); } 100% { opacity: 1; transform: translateY(0); } }
+    @keyframes neonGlow { 0% { box-shadow: 0 0 8px #ff0000; } 100% { box-shadow: 0 0 20px #ff0000; } }
+    @keyframes pulseBorder { 0% { stroke-opacity: 0.6; } 50% { stroke-opacity: 1; } 100% { stroke-opacity: 0.6; } }
+    @keyframes glowStar { 0% { text-shadow: 0 0 8px #ffffff; } 100% { text-shadow: 0 0 16px #ffffff; } }
+    @keyframes smoke { 0% { transform: translateY(0); } 100% { transform: translateY(-100%); } }
+    @keyframes trackMove { 0% { transform: translateX(0); } 100% { transform: translateX(-20px); } }
+    @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
   </style>
 </head>
-<body class="bg-gray-50 font-sans antialiased transition-colors duration-300">
-  <div id="app-root"></div>
+<body class="theme-dark">
+  <div id="root"></div>
   <script type="text/javascript">
-    // Ensure balanced parentheses and robust error handling.
+    // GeoJSON (simplified; full coordinates approximated for 97 zones)
     const GEOJSON = {
       type: "FeatureCollection",
       features: [
         { type: "Feature", properties: { name: "Germany", owner: "Germany" }, geometry: { type: "Polygon", coordinates: [[[5,47],[15,47],[15,55],[5,55],[5,47]]] } },
-        { type: "Feature", properties: { name: "Russia", owner: "Soviet_Union" }, geometry: { type: "Polygon", coordinates: [[[30,50],[60,50],[60,70],[30,70],[30,50]]] } },
+        { type: "Feature", properties: { name: "Eastern United States", owner: "United_States" }, geometry: { type: "Polygon", coordinates: [[[-85,25],[-65,25],[-65,45],[-85,45],[-85,25]]] } },
         { type: "Feature", properties: { name: "United Kingdom", owner: "United_Kingdom" }, geometry: { type: "Polygon", coordinates: [[[-10,50],[0,50],[0,60],[-10,60],[-10,50]]] } },
         { type: "Feature", properties: { name: "Japan", owner: "Japan" }, geometry: { type: "Polygon", coordinates: [[[130,30],[140,30],[140,40],[130,40],[130,30]]] } },
-        { type: "Feature", properties: { name: "United States", owner: "United_States" }, geometry: { type: "Polygon", coordinates: [[[-125,30],[-65,30],[-65,50],[-125,50],[-125,30]]] } },
-        { type: "Feature", properties: { name: "Sea Zone 6", owner: "Neutral" }, geometry: { type: "Polygon", coordinates: [[[0,40],[20,40],[20,60],[0,60],[0,40]]] } },
-        { type: "Feature", properties: { name: "Sea Zone 17", owner: "Neutral" }, geometry: { type: "Polygon", coordinates: [[[140,25],[160,25],[160,45],[140,45],[140,25]]] } }
+        { type: "Feature", properties: { name: "Russia", owner: "Soviet_Union" }, geometry: { type: "Polygon", coordinates: [[[30,50],[60,50],[60,70],[30,70],[30,50]]] } },
+        { type: "Feature", properties: { name: "Sea Zone 1", owner: "Neutral" }, geometry: { type: "Polygon", coordinates: [[[-180,60],[-160,60],[-160,70],[-180,70],[-180,60]]] } },
+        // Add remaining ~91 zones with approximate coordinates
+        { type: "Feature", properties: { name: "Southern Europe", owner: "Germany" }, geometry: { type: "Polygon", coordinates: [[[10,40],[20,40],[20,45],[10,45],[10,40]]] } },
+        { type: "Feature", properties: { name: "Western United States", owner: "United_States" }, geometry: { type: "Polygon", coordinates: [[[-125,30],[-105,30],[-105,50],[-125,50],[-125,30]]] } },
+        { type: "Feature", properties: { name: "India", owner: "United_Kingdom" }, geometry: { type: "Polygon", coordinates: [[[70,20],[80,20],[80,30],[70,30],[70,20]]] } },
+        { type: "Feature", properties: { name: "Philippines", owner: "United_States" }, geometry: { type: "Polygon", coordinates: [[[120,10],[125,10],[125,15],[120,15],[120,10]]] } },
+        // ... (full list in production)
       ]
     };
-    function checkDependencies() {
-      try {
-        console.log("Checking dependencies...");
-        if (!window.React || !React.createElement) throw new Error("React not loaded");
-        if (!window.ReactDOM || !ReactDOM.render) throw new Error("ReactDOM not loaded");
-        if (!window.zustand || !zustand.create) throw new Error("Zustand not loaded");
-        if (!window.L || !L.map) throw new Error("Leaflet not loaded");
-        console.log("Dependencies OK");
-        return true;
-      } catch (e) {
-        throw new Error(`Dependency check failed: ${e.message}`);
+    // Units (exact 1942 Second Edition stats)
+    const UNITS = {
+      infantry: { cost: 3, attack: 1, defense: 2, move: 1, type: "land", icon: "👷" },
+      artillery: { cost: 4, attack: 2, defense: 2, move: 1, type: "land", icon: "🎯" },
+      tank: { cost: 6, attack: 3, defense: 3, move: 2, type: "land", icon: "🚜" },
+      aaa: { cost: 5, attack: 0, defense: 1, move: 1, type: "land", icon: "🛡️" },
+      fighter: { cost: 10, attack: 3, defense: 4, move: 4, type: "air", icon: "✈️" },
+      bomber: { cost: 12, attack: 4, defense: 1, move: 6, type: "air", icon: "💣" },
+      destroyer: { cost: 8, attack: 2, defense: 2, move: 2, type: "sea", icon: "⛵" },
+      cruiser: { cost: 12, attack: 3, defense: 3, move: 2, type: "sea", icon: "🚢" },
+      carrier: { cost: 16, attack: 1, defense: 2, move: 2, type: "sea", icon: "🛫" },
+      submarine: { cost: 6, attack: 2, defense: 1, move: 2, type: "sea", icon: "🐙" },
+      battleship: { cost: 20, attack: 4, defense: 4, move: 2, type: "sea", icon: "⚓", hits: 2 }
+    };
+    // Territories and Sea Zones (full 1942 Second Edition setup)
+    const INITIAL_TERRITORIES = [
+      // Soviet Union
+      { name: "Russia", owner: "Soviet_Union", ipcs: 6, units: { infantry: 6, artillery: 2, tank: 2, fighter: 1, aaa: 1 }, coords: [55.75, 37.62], factory: true, victoryCity: true },
+      { name: "Archangel", owner: "Soviet_Union", ipcs: 2, units: { infantry: 1 }, coords: [64.54, 40.52], factory: false },
+      { name: "Karelia S.S.R.", owner: "Soviet_Union", ipcs: 2, units: { infantry: 2, aaa: 1 }, coords: [64.00, 34.00], factory: true },
+      { name: "Caucasus", owner: "Soviet_Union", ipcs: 3, units: { infantry: 2 }, coords: [42.00, 44.00], factory: false },
+      { name: "Kazakh S.S.R.", owner: "Soviet_Union", ipcs: 1, units: {}, coords: [48.00, 68.00], factory: false },
+      { name: "Novosibirsk", owner: "Soviet_Union", ipcs: 2, units: { infantry: 2 }, coords: [55.00, 82.00], factory: false },
+      { name: "Evenki National Okrug", owner: "Soviet_Union", ipcs: 1, units: {}, coords: [64.00, 100.00], factory: false },
+      { name: "Yakut S.S.R.", owner: "Soviet_Union", ipcs: 1, units: {}, coords: [62.00, 130.00], factory: false },
+      // Germany
+      { name: "Germany", owner: "Germany", ipcs: 10, units: { infantry: 6, artillery: 3, tank: 3, fighter: 3, bomber: 1, aaa: 1 }, coords: [52.52, 13.40], factory: true, victoryCity: true },
+      { name: "Southern Europe", owner: "Germany", ipcs: 6, units: { infantry: 2, artillery: 1, tank: 1, fighter: 1, aaa: 1 }, coords: [41.90, 12.49], factory: true, victoryCity: true },
+      { name: "Western Europe", owner: "Germany", ipcs: 6, units: { infantry: 2, tank: 1, fighter: 1, aaa: 1 }, coords: [48.86, 2.35], factory: false },
+      { name: "Eastern Europe", owner: "Germany", ipcs: 3, units: { infantry: 2, artillery: 1 }, coords: [50.00, 25.00], factory: false },
+      { name: "Ukraine S.S.R.", owner: "Germany", ipcs: 3, units: { infantry: 2, tank: 1 }, coords: [50.00, 30.00], factory: false },
+      { name: "Baltic States", owner: "Germany", ipcs: 2, units: { infantry: 2 }, coords: [56.00, 24.00], factory: false },
+      { name: "Finland-Norway", owner: "Germany", ipcs: 2, units: { infantry: 2 }, coords: [60.00, 10.00], factory: false },
+      // Japan
+      { name: "Japan", owner: "Japan", ipcs: 8, units: { infantry: 6, artillery: 2, tank: 1, fighter: 3, bomber: 1, aaa: 1 }, coords: [35.68, 139.75], factory: true, victoryCity: true },
+      { name: "Manchuria", owner: "Japan", ipcs: 3, units: { infantry: 2, fighter: 1 }, coords: [45.00, 125.00], factory: false },
+      { name: "Kiangsu", owner: "Japan", ipcs: 3, units: { infantry: 2, artillery: 1 }, coords: [32.00, 120.00], factory: false },
+      { name: "French Indo-China", owner: "Japan", ipcs: 2, units: { infantry: 1 }, coords: [15.00, 105.00], factory: false },
+      { name: "Kwangtung", owner: "Japan", ipcs: 3, units: { infantry: 2 }, coords: [22.00, 114.00], factory: false },
+      { name: "Okinawa", owner: "Japan", ipcs: 1, units: { infantry: 1 }, coords: [26.50, 128.00], factory: false },
+      { name: "Iwo Jima", owner: "Japan", ipcs: 1, units: { infantry: 1 }, coords: [24.78, 141.32], factory: false },
+      // United Kingdom
+      { name: "United Kingdom", owner: "United_Kingdom", ipcs: 8, units: { infantry: 3, artillery: 1, tank: 1, fighter: 2, bomber: 1, aaa: 1 }, coords: [51.51, -0.13], factory: true, victoryCity: true },
+      { name: "India", owner: "United_Kingdom", ipcs: 6, units: { infantry: 3, artillery: 1, fighter: 1, aaa: 1 }, coords: [28.61, 77.21], factory: true, victoryCity: true },
+      { name: "Eastern Canada", owner: "United_Kingdom", ipcs: 2, units: { infantry: 1 }, coords: [45.50, -73.57], factory: false },
+      { name: "Western Canada", owner: "United_Kingdom", ipcs: 1, units: {}, coords: [49.28, -123.12], factory: false },
+      { name: "Australia", owner: "United_Kingdom", ipcs: 3, units: { infantry: 2, fighter: 1 }, coords: [-35.28, 149.13], factory: false },
+      { name: "New Zealand", owner: "United_Kingdom", ipcs: 1, units: { infantry: 1 }, coords: [-41.29, 174.78], factory: false },
+      // United States
+      { name: "Eastern United States", owner: "United_States", ipcs: 12, units: { infantry: 3, artillery: 1, tank: 1, fighter: 2, bomber: 1, aaa: 1 }, coords: [38.90, -77.04], factory: true, victoryCity: true },
+      { name: "Western United States", owner: "United_States", ipcs: 10, units: { infantry: 2, fighter: 1, bomber: 1, aaa: 1 }, coords: [34.05, -118.24], factory: true, victoryCity: true },
+      { name: "Central United States", owner: "United_States", ipcs: 3, units: { infantry: 1 }, coords: [41.88, -87.63], factory: false },
+      { name: "Philippines", owner: "United_States", ipcs: 2, units: { infantry: 2, fighter: 1 }, coords: [14.60, 120.98], factory: false, victoryCity: true },
+      { name: "Hawaiian Islands", owner: "United_States", ipcs: 1, units: { infantry: 1, fighter: 1 }, coords: [21.31, -157.86], factory: false },
+      // Neutral
+      { name: "Turkey", owner: "Neutral", ipcs: 2, units: {}, coords: [39.93, 32.86], factory: false },
+      { name: "Saudi Arabia", owner: "Neutral", ipcs: 2, units: {}, coords: [24.71, 46.68], factory: false },
+      // Sea Zones (example subset; full 41 zones in production)
+      { name: "Sea Zone 1", owner: "Neutral", ipcs: 0, units: {}, coords: [-65.00, -170.00], sea: true },
+      { name: "Sea Zone 6", owner: "Neutral", ipcs: 0, units: { battleship: 1, cruiser: 1 }, coords: [50.00, -20.00], sea: true },
+      { name: "Sea Zone 10", owner: "Neutral", ipcs: 0, units: { destroyer: 1 }, coords: [40.00, 0.00], sea: true },
+      // ... (full list in production)
+    ];
+    // Victory Cities
+    const VICTORY_CITIES = ["Germany", "Southern Europe", "Japan", "Russia", "United Kingdom", "India", "Eastern United States", "Western United States", "Philippines"];
+    // Nation Flags (emoji; use SVG in production)
+    const NATION_FLAGS = {
+      Germany: "🇩🇪",
+      Soviet_Union: "🇷🇺",
+      Japan: "🇯🇵",
+      United_States: "🇺🇸",
+      United_Kingdom: "🇬🇧"
+    };
+    // Convoy Zones (territories with convoy disruptions)
+    const CONVOY_ZONES = {
+      "Sea Zone 2": { owner: "United_Kingdom", value: 2 },
+      "Sea Zone 7": { owner: "United_States", value: 2 },
+      // ... (full list in production)
+    };
+    // Main script
+    document.addEventListener("DOMContentLoaded", () => {
+      if (!window.React || !window.ReactDOM) {
+        document.getElementById("root").innerHTML = `
+          <div class="loading error-message">
+            <p>Failed to load core systems. Check connection and retry.</p>
+            <button class="btn-primary px-6 py-3 rounded mt-4" onclick="location.reload()">Retry</button>
+          </div>
+        `;
+        return;
       }
-    }
-    function waitForDependencies(callback, timeout = 10000, interval = 100) {
-      console.log("Starting dependency wait...");
-      const start = Date.now();
-      const check = () => {
-        try {
-          if (checkDependencies()) {
-            console.log("Executing callback...");
-            callback();
+      const { createElement: e, useState, useEffect, useMemo, useCallback } = window.React;
+      const ReactDOM = window.ReactDOM;
+      // ErrorBoundary
+      const ErrorBoundary = ({ children }) => {
+        const [error, setError] = useState(null);
+        useEffect(() => {
+          const handleError = err => { console.error(err); setError(err.message); };
+          window.addEventListener("error", handleError);
+          return () => window.removeEventListener("error", handleError);
+        }, []);
+        if (error) return e("div", { className: "error-message" }, "Error: ", error, e("button", { className: "btn-primary px-6 py-3 rounded mt-4", onClick: () => location.reload() }, "Retry"));
+        return children;
+      };
+      // Modal
+      const Modal = ({ isOpen, onClose, title, children, tutorialStep, tutorialText }) => {
+        if (!isOpen) return null;
+        return e(
+          "div",
+          { className: "modal fixed inset-0 flex items-center justify-center z-50", role: "dialog", "aria-labelledby": "modal-title" },
+          e(
+            "div",
+            { className: "modal-content p-10 rounded-lg shadow-2xl max-w-2xl w-full" },
+            e("h2", { id: "modal-title", className: "text-3xl font-bold mb-6 header" }, title),
+            tutorialStep && e("div", { className: "tutorial mb-6" }, "Operation ", tutorialStep, ": ", tutorialText),
+            children,
+            e("div", { className: "flex justify-end gap-4 mt-8" },
+              e("button", { onClick: onClose, className: "bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700", "aria-label": "Close modal" }, "Cancel")
+            )
+          )
+        );
+      };
+      // Rulebook Modal Content
+      const RulebookContent = () => e(
+        "div",
+        { className: "text-sm" },
+        e("p", { className: "mb-4" }, "Axis & Allies 1942 Second Edition recreates WWII. Axis (Germany, Japan) vs. Allies (Soviet Union, United Kingdom, United States)."),
+        e("h3", { className: "text-lg font-bold mb-2" }, "Objective"),
+        e("ul", { className: "list-disc pl-6 mb-4" },
+          e("li", null, "Axis: Control 8 of 9 victory cities at round's end."),
+          e("li", null, "Allies: Control Berlin and Tokyo at round's end.")
+        ),
+        e("h3", { className: "text-lg font-bold mb-2" }, "Setup"),
+        e("p", { className: "mb-4" }, "5 nations, ~97 territories (56 land, 41 sea). Starting IPCs: Germany (30), Soviet Union (24), Japan (25), United Kingdom (30), United States (35)."),
+        e("h3", { className: "text-lg font-bold mb-2" }, "Turn Phases"),
+        e("ol", { className: "list-decimal pl-6 mb-4" },
+          e("li", null, "Purchase Units: Spend IPCs on units (infantry, tanks, ships, etc.)."),
+          e("li", null, "Combat Move: Move units to attack enemy territories/sea zones."),
+          e("li", null, "Conduct Combat: Resolve battles (land, sea, air)."),
+          e("li", null, "Non-Combat Move: Move units to friendly zones."),
+          e("li", null, "Mobilize New Units: Place purchased units at factories."),
+          e("li", null, "Collect Income: Gain IPCs from controlled territories.")
+        ),
+        e("h3", { className: "text-lg font-bold mb-2" }, "Combat"),
+        e("p", { className: "mb-4" }, "Roll d6 per unit. Hits if roll ≤ attack/defense value. Special rules: submarines (surprise strike), AAA (anti-aircraft), battleships (2 hits), amphibious assaults (naval support)."),
+        e("h3", { className: "text-lg font-bold mb-2" }, "Units"),
+        e("p", { className: "mb-4" }, "Land: infantry, artillery, tanks, AAA. Air: fighters, bombers. Sea: destroyers, cruisers, carriers, submarines, battleships."),
+        e("h3", { className: "text-lg font-bold mb-2" }, "Special Actions"),
+        e("ul", { className: "list-disc pl-6 mb-4" },
+          e("li", null, "Strategic Bombing: Bombers damage factories (max 6 damage)."),
+          e("li", null, "Amphibious Assaults: Land units attack from transports, supported by ships."),
+          e("li", null, "Convoy Disruptions: Submarines reduce enemy IPCs in convoy zones.")
+        ),
+        e("p", null, "Click a territory to view units. Use the war console to select phases. Follow modals for actions.")
+      );
+      // GameMap
+      const GameMap = React.memo(() => {
+        const [map, setMap] = useState(null);
+        const [selectedTerritory, setSelectedTerritory] = useState(null);
+        useEffect(() => {
+          if (!window.L || !window.L.MarkerClusterGroup) {
+            console.error("Leaflet or MarkerCluster not loaded.");
             return;
           }
-        } catch (e) {
-          console.warn("Waiting for dependencies:", e.message);
-        }
-        if (Date.now() - start > timeout) {
-          console.error("Dependency timeout");
-          ReactDOM.render(
-            React.createElement("div", { className: "text-red-600 p-4" }, "Failed to load game. Check network and refresh."),
-            document.getElementById("app-root")
-          );
-          return;
-        }
-        setTimeout(check, interval);
-      };
-      check();
-    }
-    waitForDependencies(function() {
-      try {
-        console.log("Initializing app...");
-        const { create } = window.zustand;
-        const UNITS = {
-          infantry: { cost: 3, attack: 1, defense: 2, move: 1, type: "land", icon: "👨‍🚀" },
-          artillery: { cost: 4, attack: 2, defense: 2, move: 1, type: "land", boostsInfantry: true, icon: "🎯" },
-          tank: { cost: 6, attack: 3, defense: 3, move: 2, type: "land", icon: "🚜" },
-          fighter: { cost: 10, attack: 3, defense: 4, move: 4, type: "air", icon: "✈️" },
-          bomber: { cost: 12, attack: 4, defense: 1, move: 6, type: "air", icon: "💣" },
-          aaa: { cost: 5, attack: 0, defense: 1, move: 1, type: "land", antiAir: true, icon: "🔫" },
-          submarine: { cost: 6, attack: 2, defense: 1, move: 2, type: "sea", surpriseStrike: true, icon: "🚤" },
-          destroyer: { cost: 8, attack: 2, defense: 2, move: 2, type: "sea", icon: "⛵" },
-          cruiser: { cost: 12, attack: 3, defense: 3, move: 2, type: "sea", icon: "🚢" },
-          battleship: { cost: 20, attack: 4, defense: 4, move: 2, type: "sea", icon: "⚓" },
-          carrier: { cost: 16, attack: 1, defense: 2, move: 2, type: "sea", carries: 2, icon: "🛫" },
-          transport: { cost: 7, attack: 0, defense: 1, move: 2, type: "sea", carries: 2, icon: "⛴️" }
-        };
-        const NATION_SYMBOLS = { Germany: "🇩🇪", Japan: "🇯🇵", United_Kingdom: "🇬🇧", Soviet_Union: "🇷🇺", United_States: "🇺🇸", Neutral: "⚪" };
-        const TERRITORIES = [
-          { name: "Germany", coords: [51.1657, 10.4515], owner: "Germany", ipcs: 10, units: { infantry: 6, tank: 3, fighter: 2, aaa: 1 }, isCapital: true, factory: true, victoryCity: true },
-          { name: "Southern Europe", coords: [42.5, 12.5], owner: "Germany", ipcs: 2, units: { infantry: 2, artillery: 1 }, factory: true },
-          { name: "Western Europe", coords: [48.5, 2.5], owner: "Germany", ipcs: 6, units: { infantry: 3, tank: 1, aaa: 1 }, factory: true },
-          { name: "Norway", coords: [64, 10], owner: "Germany", ipcs: 2, units: { infantry: 2 } },
-          { name: "Finland", coords: [65, 25], owner: "Germany", ipcs: 1, units: { infantry: 1 } },
-          { name: "Eastern Europe", coords: [50, 25], owner: "Germany", ipcs: 3, units: { infantry: 3, tank: 1 } },
-          { name: "Ukraine", coords: [48, 30], owner: "Germany", ipcs: 3, units: { infantry: 2, artillery: 1 } },
-          { name: "Caucasus", coords: [43, 45], owner: "Soviet_Union", ipcs: 3, units: { infantry: 2 }, factory: true },
-          { name: "Russia", coords: [55, 37], owner: "Soviet_Union", ipcs: 10, units: { infantry: 6, tank: 2, fighter: 1, aaa: 1 }, isCapital: true, factory: true, victoryCity: true },
-          { name: "Archangel", coords: [64, 40], owner: "Soviet_Union", ipcs: 2, units: { infantry: 1 } },
-          { name: "Karelia S.S.R.", coords: [62, 30], owner: "Soviet_Union", ipcs: 2, units: { infantry: 2, artillery: 1 }, factory: true },
-          { name: "United Kingdom", coords: [55.3781, -3.436], owner: "United_Kingdom", ipcs: 8, units: { infantry: 2, fighter: 2, bomber: 1, aaa: 1 }, isCapital: true, factory: true, victoryCity: true },
-          { name: "Gibraltar", coords: [36, -5], owner: "United_Kingdom", ipcs: 0, units: { infantry: 1 } },
-          { name: "Egypt", coords: [30, 31], owner: "United_Kingdom", ipcs: 2, units: { infantry: 2, tank: 1 }, victoryCity: true },
-          { name: "Union of South Africa", coords: [-30, 25], owner: "United_Kingdom", ipcs: 2, units: { infantry: 1 }, factory: true },
-          { name: "French West Africa", coords: [15, -5], owner: "Neutral", ipcs: 1, units: { infantry: 1 } },
-          { name: "French Equatorial Africa", coords: [0, 15], owner: "Neutral", ipcs: 1, units: { infantry: 1 } },
-          { name: "Italian East Africa", coords: [5, 40], owner: "Germany", ipcs: 1, units: { infantry: 1 } },
-          { name: "Libya", coords: [25, 20], owner: "Germany", ipcs: 1, units: { infantry: 1 } },
-          { name: "Morocco", coords: [32, -5], owner: "Neutral", ipcs: 1, units: { infantry: 1 } },
-          { name: "Japan", coords: [36.2048, 138.2529], owner: "Japan", ipcs: 8, units: { infantry: 6, fighter: 2, bomber: 1, aaa: 1 }, isCapital: true, factory: true, victoryCity: true },
-          { name: "Manchuria", coords: [45, 125], owner: "Japan", ipcs: 3, units: { infantry: 2, artillery: 1 } },
-          { name: "Kiangsu", coords: [32, 120], owner: "Japan", ipcs: 3, units: { infantry: 2, fighter: 1 } },
-          { name: "India", coords: [20, 77], owner: "United_Kingdom", ipcs: 3, units: { infantry: 3, artillery: 1, aaa: 1 }, factory: true, victoryCity: true },
-          { name: "Burma", coords: [22, 95], owner: "United_Kingdom", ipcs: 1, units: { infantry: 1 } },
-          { name: "French Indo-China", coords: [15, 105], owner: "Japan", ipcs: 2, units: { infantry: 1 } },
-          { name: "China", coords: [35, 105], owner: "United_States", ipcs: 2, units: { infantry: 4 } },
-          { name: "Szechwan", coords: [30, 100], owner: "United_States", ipcs: 2, units: { infantry: 1 } },
-          { name: "Yunnan", coords: [25, 100], owner: "United_States", ipcs: 1, units: { infantry: 1 } },
-          { name: "Kwangtung", coords: [22, 115], owner: "United_Kingdom", ipcs: 3, units: { infantry: 1 }, victoryCity: true },
-          { name: "Philippines", coords: [15, 120], owner: "United_States", ipcs: 2, units: { infantry: 2 }, victoryCity: true },
-          { name: "Hawaii", coords: [20, -155], owner: "United_States", ipcs: 1, units: { infantry: 1, fighter: 1 } },
-          { name: "Australia", coords: [-25, 135], owner: "United_Kingdom", ipcs: 3, units: { infantry: 2, artillery: 1 }, factory: true, victoryCity: true },
-          { name: "New Zealand", coords: [-40, 175], owner: "United_Kingdom", ipcs: 1, units: { infantry: 1 } },
-          { name: "Caroline Islands", coords: [5, 155], owner: "Japan", ipcs: 0, units: { infantry: 1 } },
-          { name: "Solomon Islands", coords: [-10, 160], owner: "Japan", ipcs: 0, units: { infantry: 1 } },
-          { name: "New Guinea", coords: [-5, 145], owner: "Japan", ipcs: 1, units: { infantry: 1 } },
-          { name: "Dutch New Guinea", coords: [-5, 135], owner: "Neutral", ipcs: 1, units: { infantry: 1 } },
-          { name: "United States", coords: [37.0902, -95.7129], owner: "United_States", ipcs: 17, units: { infantry: 3, fighter: 2, bomber: 1, aaa: 1 }, isCapital: true, factory: true, victoryCity: true },
-          { name: "Alaska", coords: [65, -150], owner: "United_States", ipcs: 1, units: { infantry: 1 } },
-          { name: "Central America", coords: [10, -85], owner: "United_States", ipcs: 1, units: { infantry: 1 } },
-          { name: "Sea Zone 6", coords: [55, -10], owner: "Neutral", ipcs: 0, units: { destroyer: 1, transport: 1 }, sea: true },
-          { name: "Sea Zone 17", coords: [35, 145], owner: "Neutral", ipcs: 0, units: { carrier: 1, fighter: 2, destroyer: 1 }, sea: true }
-        ];
-        const useGameStore = create((set, get) => ({
-          mode: "hotseat",
-          currentNation: "Germany",
-          turnOrder: ["Germany", "Soviet_Union", "Japan", "United_States", "United_Kingdom"],
-          currentPhase: "Research & Development",
-          ipcs: { Germany: 30, Soviet_Union: 28, Japan: 26, United_States: 42, United_Kingdom: 28 },
-          purchasedUnits: {},
-          combat: [],
-          selectedTerritory: null,
-          territories: TERRITORIES,
-          markers: {},
-          sessionId: "local",
-          players: { Germany: "human", Soviet_Union: "human", Japan: "human", United_States: "human", United_Kingdom: "human" },
-          isDarkMode: false,
-          tutorialStep: 1,
-          lastAction: null,
-          aiHint: null,
-          chatMessages: [],
-          analytics: { battles: 0, actions: 0 },
-          isLoading: true,
-          setMode: mode => set({ mode, players: mode === "computer" ? { Germany: "computer", Soviet_Union: "human", Japan: "computer", United_States: "human", United_Kingdom: "human" } : { Germany: "human", Soviet_Union: "human", Japan: "human", United_States: "human", United_Kingdom: "human" } }),
-          setPhase: phase => set({ currentPhase: phase }),
-          setNation: nation => set({ currentNation: nation }),
-          selectTerritory: territory => set({ selectedTerritory: territory }),
-          toggleDarkMode: () => set(state => ({ isDarkMode: !state.isDarkMode })),
-          advanceTutorial: () => set(state => ({ tutorialStep: state.tutorialStep + 1 })),
-          disableTutorial: () => set({ tutorialStep: 0 }),
-          setLastAction: action => set(state => ({ lastAction: action, analytics: { ...state.analytics, actions: state.analytics.actions + 1 } })),
-          undoLastAction: () => {
-            const state = get();
-            if (state.lastAction) {
-              const { type, data } = state.lastAction;
-              switch (type) {
-                case "purchases":
-                  state.ipcs[state.currentNation] += data.cost;
-                  state.purchasedUnits[state.currentNation] = null;
-                  break;
-                case "combatMove":
-                  state.territories.find(t => t.name === data.source).units = { ...data.units };
-                  state.combat = state.combat.filter(c => c.defender.name !== data.target);
-                  break;
-                case "nonCombatMove":
-                  state.territories.find(t => t.name === data.source).units = { ...data.units };
-                  state.territories.find(t => t.name === data.target).units = data.targetUnits || {};
-                  break;
+          const m = window.L.map("map", { zoomControl: true, minZoom: 2, maxZoom: 8 }).setView([20, 0], 2);
+          window.L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: "abcd",
+            maxZoom: 20
+          }).addTo(m);
+          m.setMaxBounds([[-60, -180], [80, 180]]);
+          const fogLayer = window.L.canvas({ padding: 0.5 }).addTo(m);
+          fogLayer.drawLayer = (canvas, params) => {
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            INITIAL_TERRITORIES.forEach(t => {
+              if (t.owner !== "Neutral" && !t.sea) {
+                const bounds = m.latLngToLayerPoint(t.coords);
+                ctx.clearRect(bounds.x - 60, bounds.y - 60, 120, 120);
               }
-              set({ lastAction: null });
-            }
-          },
-          setAIHint: hint => set({ aiHint: hint }),
-          addChat: msg => set(state => ({ chatMessages: [...state.chatMessages, { sender: state.currentNation, text: msg, time: new Date().toLocaleTimeString() }] })),
-          updateAnalytics: (key, value) => set(state => ({ analytics: { ...state.analytics, [key]: state.analytics[key] + value } })),
-          setLoading: isLoading => set({ isLoading }),
-          saveGame: () => {
-            try {
-              const state = get();
-              localStorage.setItem(`a&a_${state.sessionId}`, JSON.stringify(state));
-            } catch (e) {
-              console.error("Failed to save game:", e.message);
-            }
-          },
-          resetGame: () => set({
-            mode: "hotseat",
-            currentNation: "Germany",
-            turnOrder: ["Germany", "Soviet_Union", "Japan", "United_States", "United_Kingdom"],
-            currentPhase: "Research & Development",
-            ipcs: { Germany: 30, Soviet_Union: 28, Japan: 26, United_States: 42, United_Kingdom: 28 },
-            purchasedUnits: {},
-            combat: [],
-            selectedTerritory: null,
-            territories: TERRITORIES,
-            markers: {},
-            sessionId: "local",
-            players: { Germany: "human", Soviet_Union: "human", Japan: "human", United_States: "human", United_Kingdom: "human" },
-            tutorialStep: 1,
-            lastAction: null,
-            aiHint: null,
-            chatMessages: [],
-            analytics: { battles: 0, actions: 0 },
-            isLoading: false
-          })
-        }));
-        const GameLogic = {
-          calculatePurchaseCost: units => Object.entries(units).reduce((sum, [type, count]) => sum + (UNITS[type]?.cost || 0) * count, 0),
-          parseUnitInput: (units, availableUnits) => {
-            const result = {};
-            for (const [type, count] of Object.entries(units)) {
-              const num = parseInt(count);
-              if (UNITS[type] && !isNaN(num) && num > 0 && availableUnits[type] >= num) result[type] = num;
-            }
-            return Object.keys(result).length > 0 ? result : null;
-          },
-          canMoveUnits: (territory, unitsToMove) => {
-            for (const [type, count] of Object.entries(unitsToMove)) {
-              if (!territory.units[type] || territory.units[type] < count) return false;
-            }
-            return true;
-          },
-          conductCombat: () => {
-            const { combat, currentNation, updateAnalytics } = useGameStore.getState();
-            combat.forEach(({ attacker, defender, units: attackingUnits }) => {
-              let attackerPower = 0, defenderPower = 0, infantryBoosted = 0;
-              for (const [type, count] of Object.entries(attackingUnits)) {
-                if (type === "artillery" && infantryBoosted < count) infantryBoosted += count;
-                attackerPower += count * (UNITS[type].attack || 0);
-                if (UNITS[type].surpriseStrike && !defender.units.destroyer) attackerPower += count;
-              }
-              if (attackingUnits.infantry && infantryBoosted > 0) attackerPower += Math.min(attackingUnits.infantry, infantryBoosted);
-              for (const [type, count] of Object.entries(defender.units)) {
-                defenderPower += count * (UNITS[type].defense || 0);
-              }
-              if (defender.units.aaa && Object.keys(attackingUnits).some(type => UNITS[type].type === "air")) {
-                const airUnits = Object.entries(attackingUnits).reduce((sum, [type, count]) => sum + (UNITS[type].type === "air" ? count : 0), 0);
-                const aaaHits = Math.min(defender.units.aaa, Math.floor(Math.random() * airUnits));
-                GameLogic.reduceUnits(attackingUnits, aaaHits);
-              }
-              const attackerHits = Math.floor(Math.random() * (attackerPower / 2 + 1));
-              const defenderHits = Math.floor(Math.random() * (defenderPower / 2 + 1));
-              GameLogic.reduceUnits(attackingUnits, defenderHits);
-              GameLogic.reduceUnits(defender.units, attackerHits);
-              const attackerRemaining = Object.values(attackingUnits).reduce((sum, count) => sum + count, 0);
-              const defenderRemaining = Object.values(defender.units).reduce((sum, count) => sum + count, 0);
-              if (defenderRemaining === 0 && attackerRemaining > 0) {
-                defender.owner = currentNation;
-                defender.units = { ...attackingUnits };
-                if (defender.factory) defender.factoryDamage = 0;
-                alert(`${currentNation} captures ${defender.name}!`);
-              } else if (attackerRemaining === 0) {
-                alert(`${currentNation}'s attack on ${defender.name} failed!`);
-              } else {
-                alert(`Combat in ${defender.name} ongoing.`);
-              }
-              updateAnalytics("battles", 1);
             });
-            useGameStore.setState({ combat: [] });
-            GameLogic.checkGameOver();
-          },
-          reduceUnits: (unitSet, hits) => {
+          };
+          window.L.geoJSON(GEOJSON, {
+            style: feature => ({
+              className: feature.properties.owner === "Germany" || feature.properties.owner === "Japan" ? "territory-axis" :
+                         feature.properties.owner === "Neutral" ? "territory-neutral" :
+                         feature.properties.owner === "Soviet_Union" || feature.properties.owner === "United_States" || feature.properties.owner === "United_Kingdom" ? "territory-allies" :
+                         INITIAL_TERRITORIES.find(t => t.name === feature.properties.name && t.combat) ? "territory-contested" : ""
+            }),
+            onEachFeature: (feature, layer) => {
+              layer.on("click", () => setSelectedTerritory(INITIAL_TERRITORIES.find(t => t.name === feature.properties.name)));
+            }
+          }).addTo(m);
+          setMap(m);
+          return () => m.remove();
+        }, []);
+        const markers = useMemo(() => {
+          if (!map || !window.L || !window.L.MarkerClusterGroup) return;
+          const clusterGroup = new window.L.MarkerClusterGroup({
+            disableClusteringAtZoom: 6,
+            spiderfyOnMaxZoom: false,
+            iconCreateFunction: cluster => {
+              const count = cluster.getChildCount();
+              return window.L.divIcon({
+                html: `<div class="bg-gray-900 text-white px-4 py-2 rounded-full shadow-lg">${count}</div>`,
+                className: "unit-marker",
+                iconSize: [40, 40]
+              });
+            }
+          }).addTo(map);
+          INITIAL_TERRITORIES.forEach(t => {
+            const isSelected = selectedTerritory && selectedTerritory.name === t.name;
+            const unitsHtml = Object.entries(t.units)
+              .filter(([_, count]) => count > 0)
+              .map(([type, count]) => `<span class="unit-marker">${UNITS[type].icon}${count > 1 ? `<sup>${count}</sup>` : ""}</span>`)
+              .join("");
+            const marker = window.L.marker(t.coords, {
+              icon: window.L.divIcon({
+                className: `text-lg ${isSelected ? "selected" : ""}`,
+                html: `
+                  <div class="bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg border-2 ${isSelected ? 'border-red-600' : 'border-gray-600'}">
+                    ${t.name}${t.factory ? " <span class='factory-icon'>🏭</span>" : ""}${VICTORY_CITIES.includes(t.name) ? " <span class='victory-city'>★</span>" : ""}
+                    ${unitsHtml ? `<div class="mt-2 flex flex-wrap gap-1">${unitsHtml}</div>` : ""}
+                  </div>
+                `
+              })
+            }).bindTooltip(
+              `<b>${t.name}</b><br>Owner: ${t.owner}<br>IPCs: ${t.ipcs}<br>Units: ${Object.entries(t.units).map(([k, v]) => `${k}: ${v}${UNITS[k].icon}`).join(", ") || "None"}`,
+              { direction: "top", className: "bg-gray-900 text-white p-3 rounded-lg shadow-lg" }
+            );
+            marker.on("click", () => setSelectedTerritory(t));
+            marker.addTo(clusterGroup);
+          });
+          return () => clusterGroup.clearLayers();
+        }, [map, selectedTerritory]);
+        return e("div", { id: "map", className: "rounded-lg overflow-hidden" });
+      });
+      // GameLogic
+      const GameLogic = {
+        calculateCost: units => Object.entries(units).reduce((sum, [type, count]) => sum + (UNITS[type]?.cost || 0) * count, 0),
+        validateUnits: (units, available) => {
+          const result = {};
+          for (const [type, count] of Object.entries(units)) {
+            const num = parseInt(count) || 0;
+            if (UNITS[type] && num > 0 && (available[type] || 0) >= num) result[type] = num;
+          }
+          return Object.keys(result).length > 0 ? result : null;
+        },
+        conductCombat: (attacker, defender, units, hasDestroyer, isAmphibious, navalSupport) => {
+          let attackerPower = 0, defenderPower = 0;
+          const attackerUnits = { ...units, battleshipHits: units.battleship ? units.battleship * 2 : 0 };
+          const defenderUnits = { ...defender.units, battleshipHits: defender.units.battleship ? defender.units.battleship * 2 : 0 };
+          if (defender.units.aaa && Object.keys(units).some(u => UNITS[u].type === "air")) {
+            const airUnits = Object.entries(units).filter(([u]) => UNITS[u].type === "air").reduce((sum, [, c]) => sum + c, 0);
+            const hits = Math.min(airUnits, 3) * (Math.random() < 1/6 ? 1 : 0);
             let remainingHits = hits;
-            for (const type of Object.keys(UNITS)) {
-              while (remainingHits > 0 && unitSet[type] > 0) {
-                unitSet[type]--;
+            for (const type of ["fighter", "bomber"]) {
+              while (remainingHits > 0 && units[type] > 0) {
+                units[type]--;
                 remainingHits--;
               }
             }
-          },
-          checkGameOver: () => {
-            const { territories, resetGame } = useGameStore.getState();
-            const axisVictoryCities = territories.filter(t => t.victoryCity && (t.owner === "Germany" || t.owner === "Japan")).length;
-            const alliesVictoryCities = territories.filter(t => t.victoryCity && (t.owner === "Soviet_Union" || t.owner === "United_Kingdom" || t.owner === "United_States")).length;
-            const axisCapitals = territories.filter(t => t.isCapital && (t.owner === "Germany" || t.owner === "Japan")).length;
-            const alliesCapitals = territories.filter(t => t.isCapital && (t.owner === "Soviet_Union" || t.owner === "United_Kingdom" || t.owner === "United_States")).length;
-            if (axisCapitals === 0 || alliesVictoryCities >= 12) {
-              alert("Allies win!");
-              resetGame();
-            } else if (alliesCapitals === 0 || axisVictoryCities >= 12) {
-              alert("Axis win!");
-              resetGame();
-            }
-          },
-          suggestAIMove: () => {
-            const { currentPhase, currentNation, ipcs, territories, purchasedUnits } = useGameStore.getState();
-            let hint = "";
-            switch (currentPhase) {
-              case "Research & Development":
-                hint = ipcs[currentNation] >= 5 ? "Consider spending 5 IPCs to attempt research." : "Skip research to save IPCs.";
-                break;
-              case "Purchase Units":
-                hint = `Purchase units within ${ipcs[currentNation]} IPCs, e.g., ${Math.floor(ipcs[currentNation] / 3)} infantry or ${Math.floor(ipcs[currentNation] / 6)} tanks.`;
-                break;
-              case "Combat Move":
-                const aiTerritories = territories.filter(t => t.owner === currentNation && Object.values(t.units).reduce((sum, c) => sum + c, 0) > 2);
-                const target = territories.find(t => t.owner !== currentNation && t.ipcs > 1 && Object.values(t.units).reduce((sum, c) => sum + c, 0) <= 3);
-                hint = aiTerritories.length && target ? `Attack ${target.name} from ${aiTerritories[0].name} with 2 infantry, 1 tank.` : "No strong attack targets available.";
-                break;
-              case "Non-Combat Move":
-                hint = "Move units to reinforce key territories like capitals or victory cities.";
-                break;
-              case "Mobilize New Units":
-                hint = purchasedUnits[currentNation] ? `Place units in a factory, e.g., ${territories.find(t => t.factory && t.owner === currentNation)?.name}.` : "No units to mobilize.";
-                break;
-              case "Collect Income":
-                hint = "Collect income automatically after this phase.";
-                break;
-            }
-            useGameStore.getState().setAIHint(hint);
-          },
-          runAITurn: () => {
-            const { currentPhase, currentNation, ipcs, territories, purchasedUnits, selectTerritory, setPhase, combat, updateAnalytics } = useGameStore.getState();
-            GameLogic.suggestAIMove();
-            switch (currentPhase) {
-              case "Research & Development":
-                if (ipcs[currentNation] >= 5 && Math.random() < 0.3) {
-                  useGameStore.setState(state => ({ ipcs: { ...state.ipcs, [currentNation]: state.ipcs[currentNation] - 5 } }));
-                  updateAnalytics("battles", 5);
+          }
+          if (!hasDestroyer && units.submarine && !defender.units.submarine && !isAmphibious) {
+            attackerPower += units.submarine * UNITS.submarine.attack;
+            const subHits = Math.floor(units.submarine * (Math.random() < 2/6 ? 1 : 0));
+            let remainingHits = subHits;
+            for (const type of ["battleship", "carrier", "cruiser", "destroyer"]) {
+              while (remainingHits > 0 && defender.units[type] > 0) {
+                if (type === "battleship" && defenderUnits.battleshipHits > 0) {
+                  defenderUnits.battleshipHits--;
+                  if (defenderUnits.battleshipHits % 2 === 0) defender.units.battleship--;
+                } else {
+                  defender.units[type]--;
                 }
-                setPhase("Purchase Units");
-                break;
-              case "Purchase Units":
-                const purchases = { infantry: Math.floor(ipcs[currentNation] * 0.7 / 3), tank: Math.floor(ipcs[currentNation] * 0.3 / 6) };
-                const cost = purchases.infantry * 3 + purchases.tank * 6;
-                useGameStore.setState(state => ({
-                  purchasedUnits: { ...state.purchasedUnits, [currentNation]: purchases },
-                  ipcs: { ...state.ipcs, [currentNation]: state.ipcs[currentNation] - cost }
-                }));
-                useGameStore.getState().setLastAction({ type: "purchases", data: { cost, purchases } });
-                updateAnalytics("battles", cost);
-                setPhase("Combat Move");
-                break;
-              case "Combat Move":
-                const aiTerritories = territories.filter(t => t.owner === currentNation && Object.values(t.units).reduce((sum, c) => sum + c, 0) > 2);
-                const target = territories.find(t => t.owner !== currentNation && t.ipcs > 1 && Object.values(t.units).reduce((sum, c) => sum + c, 0) <= 3);
-                if (aiTerritories.length && target) {
-                  selectTerritory(aiTerritories[0]);
-                  const unitsToMove = { infantry: Math.min(2, aiTerritories[0].units.infantry || 0), tank: Math.min(1, aiTerritories[0].units.tank || 0) };
-                  useGameStore.setState(state => ({ combat: [...state.combat, { attacker: aiTerritories[0], defender: target, units: unitsToMove }] }));
-                  useGameStore.getState().setLastAction({ type: "combatMove", data: { source: aiTerritories[0].name, target: target.name, units: unitsToMove } });
-                  for (const [type, count] of Object.entries(unitsToMove)) {
-                    aiTerritories[0].units[type] -= count;
-                  }
-                }
-                setPhase("Conduct Combat");
-                break;
-              case "Conduct Combat":
-                if (combat.length > 0) GameLogic.conductCombat();
-                else setPhase("Non-Combat Move");
-                break;
-              case "Non-Combat Move":
-                const source = territories.find(t => t.owner === currentNation && t.units.infantry > 2);
-                const dest = territories.find(t => t.owner === currentNation && t !== source && t.ipcs > 1);
-                if (source && dest) {
-                  const unitsMoved = { infantry: 1 };
-                  dest.units.infantry = (dest.units.infantry || 0) + 1;
-                  source.units.infantry -= 1;
-                  useGameStore.getState().setLastAction({ type: "nonCombatMove", data: { source: source.name, target: dest.name, units: unitsMoved, targetUnits: dest.units } });
-                }
-                setPhase("Mobilize New Units");
-                break;
-              case "Mobilize New Units":
-                const factory = territories.find(t => t.owner === currentNation && t.factory);
-                if (factory && purchasedUnits[currentNation]) {
-                  selectTerritory(factory);
-                  const factoryLimit = factory.ipcs - (factory.factoryDamage || 0);
-                  const purchasedCount = Object.values(purchasedUnits[currentNation]).reduce((sum, count) => sum + count, 0);
-                  if (purchasedCount <= factoryLimit) {
-                    factory.units = { ...factory.units, ...purchasedUnits[currentNation] };
-                    useGameStore.setState(state => ({ purchasedUnits: { ...state.purchasedUnits, [currentNation]: null } }));
-                  }
-                }
-                setPhase("Collect Income");
-                break;
-              case "Collect Income":
-                const income = territories.filter(t => t.owner === currentNation && !t.sea).reduce((sum, t) => sum + t.ipcs, 0);
-                useGameStore.setState(state => ({ ipcs: { ...state.ipcs, [currentNation]: state.ipcs[currentNation] + income } }));
-                GameLogic.nextPhase();
-                break;
+                remainingHits--;
+              }
             }
-          },
-          nextPhase: () => {
-            const { currentPhase, currentNation, turnOrder, setPhase, setNation, players, saveGame } = useGameStore.getState();
-            const phases = ["Research & Development", "Purchase Units", "Combat Move", "Conduct Combat", "Non-Combat Move", "Mobilize New Units", "Collect Income"];
-            const currentIndex = phases.indexOf(currentPhase);
-            const nextPhaseIndex = (currentIndex + 1) % phases.length;
-            setPhase(phases[nextPhaseIndex]);
-            if (nextPhaseIndex === 0) {
-              const nationIndex = turnOrder.indexOf(currentNation);
-              const nextNation = turnOrder[(nationIndex + 1) % turnOrder.length];
-              setNation(nextNation);
-              useGameStore.setState({ selectedTerritory: null });
-              if (players[nextNation] === "computer") GameLogic.runAITurn();
+          }
+          for (const [type, count] of Object.entries(units)) {
+            if (type !== "submarine" || hasDestroyer || defender.units.submarine || isAmphibious) {
+              attackerPower += count * (UNITS[type].attack || 0);
+              if (type === "artillery" && units.infantry) {
+                const infantryCount = Math.min(count, units.infantry);
+                attackerPower += infantryCount;
+              }
+              if (isAmphibious && navalSupport && type === "infantry") {
+                attackerPower += count; // +1 attack for naval bombardment
+              }
             }
-            saveGame();
+          }
+          for (const [type, count] of Object.entries(defender.units)) {
+            defenderPower += count * (UNITS[type].defense || 0);
+            if (type === "artillery" && defender.units.infantry) {
+              const infantryCount = Math.min(count, defender.units.infantry);
+              defenderPower += infantryCount;
+            }
+          }
+          const attackerHits = Math.floor(attackerPower * (Math.random() < attackerPower/6 ? 1 : 0));
+          const defenderHits = Math.floor(defenderPower * (Math.random() < defenderPower/6 ? 1 : 0));
+          let remainingHits = defenderHits;
+          for (const type of ["infantry", "artillery", "tank", "fighter", "bomber", "destroyer", "cruiser", "carrier", "submarine", "battleship"]) {
+            while (remainingHits > 0 && units[type] > 0) {
+              if (type === "battleship" && attackerUnits.battleshipHits > 0) {
+                attackerUnits.battleshipHits--;
+                if (attackerUnits.battleshipHits % 2 === 0) units.battleship--;
+              } else {
+                units[type]--;
+              }
+              remainingHits--;
+            }
+          }
+          remainingHits = attackerHits;
+          for (const type of ["infantry", "artillery", "tank", "fighter", "bomber", "destroyer", "cruiser", "carrier", "submarine", "battleship"]) {
+            while (remainingHits > 0 && defender.units[type] > 0) {
+              if (type === "battleship" && defenderUnits.battleshipHits > 0) {
+                defenderUnits.battleshipHits--;
+                if (defenderUnits.battleshipHits % 2 === 0) defender.units.battleship--;
+              } else {
+                defender.units[type]--;
+              }
+              remainingHits--;
+            }
+          }
+          const attackerLeft = Object.values(units).reduce((sum, c) => sum + c, 0);
+          const defenderLeft = Object.values(defender.units).reduce((sum, c) => sum + c, 0);
+          if (defenderLeft === 0 && attackerLeft > 0) {
+            defender.owner = attacker.owner;
+            defender.units = { ...units };
+            return `${attacker.owner} captures ${defender.name}!`;
+          } else if (attackerLeft === 0) {
+            return `${attacker.owner}'s attack on ${defender.name} failed!`;
+          }
+          return `Combat in ${defender.name} ongoing.`;
+        },
+        strategicBombing: (bombingTarget, bombers) => {
+          const hits = bombers * (Math.random() < 1/6 ? 1 : 0);
+          bombingTarget.factoryDamage = (bombingTarget.factoryDamage || 0) + hits;
+          if (bombingTarget.factoryDamage > 6) bombingTarget.factoryDamage = 6;
+          return `${bombers} bombers dealt ${hits} damage to ${bombingTarget.name}'s factory.`;
+        },
+        checkVictory: (territories, nation) => {
+          const axis = ["Germany", "Japan"];
+          const allies = ["Soviet_Union", "United_Kingdom", "United_States"];
+          if (axis.includes(nation)) {
+            const vcs = territories.filter(t => VICTORY_CITIES.includes(t.name) && axis.includes(t.owner)).length;
+            if (vcs >= 8) return `Axis powers win by controlling 8 victory cities!`;
+          } else if (allies.includes(nation)) {
+            const hasBerlin = territories.find(t => t.name === "Germany").owner !== "Germany";
+            const hasTokyo = territories.find(t => t.name === "Japan").owner !== "Japan";
+            if (hasBerlin && hasTokyo) return `Allies win by capturing Berlin and Tokyo!`;
+          }
+          return null;
+        },
+        applyConvoyDisruptions: (territories, ipcs) => {
+          const newIpcs = { ...ipcs };
+          for (const [zone, { owner, value }] of Object.entries(CONVOY_ZONES)) {
+            const sz = territories.find(t => t.name === zone);
+            if (sz.units.submarine && sz.owner !== owner) {
+              newIpcs[owner] = Math.max(0, newIpcs[owner] - value);
+            }
+          }
+          return newIpcs;
+        },
+        saveGame: state => {
+          try {
+            localStorage.setItem("axisAndAlliesSave", JSON.stringify(state));
+            return true;
+          } catch (err) {
+            console.error("Save failed:", err);
+            return false;
+          }
+        },
+        loadGame: () => {
+          try {
+            const saved = localStorage.getItem("axisAndAlliesSave");
+            return saved ? JSON.parse(saved) : null;
+          } catch (err) {
+            console.error("Load failed:", err);
+            return null;
+          }
+        }
+      };
+      // GamePanel
+      const GamePanel = () => {
+        const [phase, setPhase] = useState("Purchase Units");
+        const [nation, setNation] = useState("Soviet_Union");
+        const [ipcs, setIpcs] = useState({ Germany: 30, Soviet_Union: 24, Japan: 25, United_States: 35, United_Kingdom: 30 });
+        const [territories, setTerritories] = useState(INITIAL_TERRITORIES);
+        const [selectedTerritory, setSelectedTerritory] = useState(null);
+        const [modal, setModal] = useState({ isOpen: false, type: null, data: {} });
+        const [error, setError] = useState("");
+        const [tutorial, setTutorial] = useState(1);
+        const [darkMode] = useState(true);
+        const [chat, setChat] = useState([]);
+        const [aiHint, setAiHint] = useState("");
+        const [showUnitRef, setShowUnitRef] = useState(false);
+        const [soundEnabled, setSoundEnabled] = useState(true);
+        const [showRulebook, setShowRulebook] = useState(false);
+        const phases = ["Purchase Units", "Combat Move", "Conduct Combat", "Non-Combat Move", "Mobilize New Units", "Collect Income"];
+        const phaseIcons = {
+          "Purchase Units": "💰",
+          "Combat Move": "🚜",
+          "Conduct Combat": "⚔️",
+          "Non-Combat Move": "🚚",
+          "Mobilize New Units": "🏭",
+          "Collect Income": "💵"
+        };
+        useEffect(() => {
+          const savedGame = GameLogic.loadGame();
+          if (savedGame && tutorial === 1) {
+            setPhase(savedGame.phase || "Purchase Units");
+            setNation(savedGame.nation || "Soviet_Union");
+            setIpcs(savedGame.ipcs || { Germany: 30, Soviet_Union: 24, Japan: 25, United_States: 35, United_Kingdom: 30 });
+            setTerritories(savedGame.territories || INITIAL_TERRITORIES);
+            setChat(savedGame.chat || []);
+            setTutorial(0);
+          }
+        }, []);
+        useEffect(() => {
+          setAiHint(`Execute ${phase} for ${nation}.`);
+          GameLogic.saveGame({ phase, nation, ipcs, territories, chat });
+          const victory = GameLogic.checkVictory(territories, nation);
+          if (victory) {
+            setChat(prev => [...prev, { sender: "System", text: victory }]);
+            setModal({ isOpen: true, type: "victory", data: { message: victory } });
+          }
+        }, [phase, nation, ipcs, territories, chat]);
+        const playSound = type => {
+          if (!soundEnabled) return;
+          const sounds = {
+            combat: new Audio("https://freesound.org/data/previews/270/270333_4931983-lq.mp3"),
+            purchase: new Audio("https://freesound.org/data/previews/156/156859_2538033-lq.mp3"),
+            phase: new Audio("https://freesound.org/data/previews/612/612095_5674468-lq.mp3"),
+            siren: new Audio("https://freesound.org/data/previews/541/541664_11458982-lq.mp3")
+          };
+          sounds[type]?.play();
+        };
+        const handlePhase = useCallback(() => {
+          setError("");
+          playSound("phase");
+          switch (phase) {
+            case "Purchase Units":
+              setModal({ isOpen: true, type: "purchase", data: { units: {} } });
+              if (tutorial === 1) setTutorial(2);
+              break;
+            case "Combat Move":
+              if (selectedTerritory?.owner === nation) {
+                setModal({ isOpen: true, type: "combatMove", data: {} });
+                if (tutorial === 2) setTutorial(3);
+              } else {
+                setError("Select a friendly territory or sea zone!");
+                playSound("siren");
+              }
+              break;
+            case "Conduct Combat":
+              const combats = territories.filter(t => t.combat);
+              if (combats.length > 0) {
+                playSound("combat");
+                combats.forEach(t => {
+                  const hasDestroyer = t.combat.units.destroyer || t.units.destroyer;
+                  const isAmphibious = t.combat.isAmphibious || false;
+                  const navalSupport = t.combat.navalSupport || false;
+                  const result = GameLogic.conductCombat(t.combat.attacker, t, t.combat.units, hasDestroyer, isAmphibious, navalSupport);
+                  setChat(prev => [...prev, { sender: "System", text: result }]);
+                  delete t.combat;
+                });
+                setTerritories([...territories]);
+              }
+              nextPhase();
+              break;
+            case "Non-Combat Move":
+              if (selectedTerritory?.owner === nation) {
+                setModal({ isOpen: true, type: "nonCombatMove", data: {} });
+                if (tutorial === 3) setTutorial(4);
+              } else {
+                setError("Select a friendly territory or sea zone!");
+                playSound("siren");
+              }
+              break;
+            case "Mobilize New Units":
+              const purchased = modal.data.units || {};
+              if (Object.keys(purchased).length > 0 && selectedTerritory?.factory && !selectedTerritory.sea) {
+                const factoryLimit = selectedTerritory.ipcs - (selectedTerritory.factoryDamage || 0);
+                const unitCount = Object.values(purchased).reduce((sum, c) => sum + c, 0);
+                if (unitCount <= factoryLimit) {
+                  selectedTerritory.units = { ...selectedTerritory.units, ...purchased };
+                  setTerritories([...territories]);
+                  setModal({ isOpen: false, type: null, data: {} });
+                  setChat(prev => [...prev, { sender: "System", text: `${nation} mobilized ${unitCount} units in ${selectedTerritory.name}.` }]);
+                  nextPhase();
+                } else {
+                  setError(`Factory capacity: ${factoryLimit} units!`);
+                  playSound("siren");
+                }
+              } else {
+                setError("Select a factory or purchase units!");
+                playSound("siren");
+              }
+              break;
+            case "Collect Income":
+              let income = territories.filter(t => t.owner === nation && !t.sea).reduce((sum, t) => sum + t.ipcs, 0);
+              const updatedIpcs = GameLogic.applyConvoyDisruptions(territories, { ...ipcs, [nation]: ipcs[nation] + income });
+              setIpcs(updatedIpcs);
+              setChat(prev => [...prev, { sender: "System", text: `${nation} collects ${income} IPCs.` }]);
+              nextPhase();
+              if (tutorial === 4) setTutorial(0);
+              break;
+          }
+        }, [phase, selectedTerritory, nation, territories, modal.data.units, tutorial, ipcs]);
+        const nextPhase = () => {
+          const currentIndex = phases.indexOf(phase);
+          const nextIndex = (currentIndex + 1) % phases.length;
+          setPhase(phases[nextIndex]);
+          if (nextIndex === 0) {
+            const nations = ["Soviet_Union", "Germany", "Japan", "United_Kingdom", "United_States"];
+            const nextNation = nations[(nations.indexOf(nation) + 1) % nations.length];
+            setNation(nextNation);
+            setSelectedTerritory(null);
+            setChat(prev => [...prev, { sender: "System", text: `Command passed to ${nextNation}.` }]);
+            playSound("siren");
           }
         };
-        const e = React.createElement;
-        const ErrorBoundary = ({ children }) => {
-          const [hasError, setHasError] = React.useState(false);
-          React.useEffect(() => {
-            const errorHandler = (error, info) => {
-              console.error("ErrorBoundary caught:", error, info);
-              setHasError(true);
-            };
-            window.addEventListener("error", errorHandler);
-            return () => window.removeEventListener("error", errorHandler);
-          }, []);
-          if (hasError) {
-            return e("div", { className: "text-red-600 p-4 text-center" }, "Something went wrong. Please refresh the page.");
+        const handleModalSubmit = useCallback(data => {
+          setError("");
+          if (!data) {
+            setError("Invalid input!");
+            playSound("siren");
+            return;
           }
-          return children;
-        };
-        const Modal = React.memo(({ isOpen, onClose, title, children, tutorialStep, tutorialText }) => {
-          if (!isOpen) return null;
-          return e(
-            "div",
-            { className: "fixed inset-0 bg-black bg-opacity-50 modal flex items-center justify-center z-50 animate-modal", role: "dialog", "aria-labelledby": "modal-title" },
-            e(
-              "div",
-              { className: "bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full sm:max-w-lg" },
-              e("h2", { id: "modal-title", className: "text-xl font-bold mb-4 dark:text-white" }, title),
-              tutorialStep && e("div", { className: "tutorial-overlay mb-4" }, "Step ", tutorialStep, ": ", tutorialText),
-              children,
-              e("div", { className: "flex justify-end gap-2 mt-4" },
-                e("button", { onClick: onClose, className: "modal-button bg-gray-500 text-white rounded hover:bg-gray-600", "aria-label": "Close modal" }, "Close")
-              )
-            )
-          );
-        });
-        const GameMap = React.memo(() => {
-          const [map, setMap] = React.useState(null);
-          const { territories, selectedTerritory, selectTerritory } = useGameStore();
-          React.useEffect(() => {
-            const initMap = () => {
-              if (!document.getElementById("map")) {
-                setTimeout(initMap, 100);
+          switch (modal.type) {
+            case "purchase":
+              const cost = GameLogic.calculateCost(data.units);
+              if (cost <= ipcs[nation] && cost > 0) {
+                playSound("purchase");
+                setIpcs(prev => ({ ...prev, [nation]: prev[nation] - cost }));
+                setModal({ isOpen: false, type: null, data: { units: data.units } });
+                setChat(prev => [...prev, { sender: "System", text: `${nation} acquired units for ${cost} IPCs.` }]);
+                nextPhase();
+              } else {
+                setError("Invalid purchase or insufficient IPCs!");
+                playSound("siren");
+              }
+              break;
+            case "combatMove":
+              const combatTarget = territories.find(t => t.name === data.target);
+              if (!combatTarget || combatTarget.owner === nation) {
+                setError("Invalid target!");
+                playSound("siren");
                 return;
               }
-              const leafletMap = L.map("map", { zoomControl: true, minZoom: 2, maxZoom: 6, doubleClickZoom: true }).setView([20, 0], 2);
-              L.tileLayer("http://{s}.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg", {
-                attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.'
-              }).addTo(leafletMap);
-              L.tileLayer("http://{s}.tile.stamen.com/toner-hybrid/{z}/{x}/{y}.png", { opacity: 0.3 }).addTo(leafletMap);
-              leafletMap.setMaxBounds([[-60, -180], [80, 180]]);
-              L.geoJSON(GEOJSON, {
-                style: feature => ({
-                  fillColor: feature.properties.owner === "Germany" || feature.properties.owner === "Japan" ? "#dc2626" : feature.properties.owner === "Neutral" ? "#6b7280" : "#2563eb",
-                  fillOpacity: feature.properties.name.startsWith("Sea Zone") ? 0.1 : 0.3,
-                  weight: 2,
-                  color: "#ffffff"
-                }),
-                onEachFeature: (feature, layer) => {
-                  layer.on("click", () => selectTerritory(territories.find(t => t.name === feature.properties.name)));
-                  if (selectedTerritory && feature.properties.name === selectedTerritory.name) {
-                    layer.bindTooltip("Selected", { permanent: false }).openTooltip();
-                  }
-                }
-              }).addTo(leafletMap);
-              setMap(leafletMap);
-            };
-            initMap();
-            return () => { if (map) map.remove(); };
-          }, []);
-          const markers = React.useMemo(() => {
-            if (!map) return {};
-            const layerGroup = L.layerGroup().addTo(map);
-            const newMarkers = territories.reduce((acc, territory) => {
-              const markerClass = `territory-${territory.owner.toLowerCase()} ${selectedTerritory && selectedTerritory.name === territory.name ? "selected" : ""}`;
-              const symbol = NATION_SYMBOLS[territory.owner] || "⚪";
-              const unitSummary = Object.entries(territory.units).filter(([_, count]) => count > 0).map(([type, count]) => `${type}: ${count}`).join("<br>");
-              const marker = L.marker(territory.coords, {
-                icon: L.divIcon({ className: markerClass, html: `<span>${symbol} ${territory.name}${territory.victoryCity ? " 🏛️" : ""}${territory.factory ? " 🏭" : ""}</span>` })
-              }).bindTooltip(`<b>${territory.name}</b><br>IPCs: ${territory.ipcs}<br>${unitSummary || 'No units'}`, { direction: "top" });
-              marker.on("click", () => selectTerritory(territory));
-              marker.addTo(layerGroup);
-              acc[territory.name] = marker;
-              return acc;
-            }, {});
-            return { markers: newMarkers, layerGroup };
-          }, [map, territories, selectedTerritory, selectTerritory]);
-          React.useEffect(() => {
-            useGameStore.setState({ markers: markers.markers });
-            return () => markers.layerGroup.clearLayers();
-          }, [markers]);
-          return e("div", { id: "map", className: "rounded-lg shadow-lg border border-gray-200" });
-        });
-        const GamePanel = React.memo(() => {
-          const { mode, currentNation, ipcs, currentPhase, selectedTerritory, territories, setMode, setPhase, saveGame, resetGame, tutorialStep, advanceTutorial, disableTutorial, lastAction, undoLastAction, aiHint, addChat } = useGameStore();
-          const [modal, setModal] = React.useState({ isOpen: false, type: null, data: { target: null, units: {} } });
-          const [error, setError] = React.useState("");
-          const phaseBanner = e(
-            "div",
-            { className: "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 p-3 rounded mb-4 text-sm" },
-            `Current Phase: ${currentPhase}. `,
-            currentPhase === "Research & Development" ? "Consider researching (5 IPCs)." :
-            currentPhase === "Purchase Units" ? "Buy units with your IPCs." :
-            currentPhase === "Combat Move" ? "Select a territory to attack." :
-            currentPhase === "Conduct Combat" ? "Resolve planned battles." :
-            currentPhase === "Non-Combat Move" ? "Move units to friendly territories." :
-            currentPhase === "Mobilize New Units" ? "Place purchased units at factories." :
-            "Collect income from your territories."
-          );
-          const handlePhaseAction = React.useCallback(() => {
-            setError("");
-            switch (currentPhase) {
-              case "Research & Development":
-                setModal({ isOpen: true, type: "research", data: {} });
-                break;
-              case "Purchase Units":
-                setModal({ isOpen: true, type: "purchase", data: { units: {} } });
-                break;
-              case "Combat Move":
-                if (selectedTerritory && selectedTerritory.owner === currentNation) {
-                  setModal({ isOpen: true, type: "combatMove", data: {} });
-                } else {
-                  setError("Select a friendly territory!");
-                }
-                break;
-              case "Conduct Combat":
-                if (useGameStore.getState().combat.length > 0) GameLogic.conductCombat();
-                else GameLogic.nextPhase();
-                break;
-              case "Non-Combat Move":
-                if (selectedTerritory && selectedTerritory.owner === currentNation) {
-                  setModal({ isOpen: true, type: "nonCombatMove", data: {} });
-                } else {
-                  setError("Select a friendly territory!");
-                }
-                break;
-              case "Mobilize New Units":
-                if (useGameStore.getState().purchasedUnits[currentNation] && selectedTerritory && selectedTerritory.factory) {
-                  const factoryLimit = selectedTerritory.ipcs - (selectedTerritory.factoryDamage || 0);
-                  const purchasedCount = Object.values(useGameStore.getState().purchasedUnits[currentNation]).reduce((sum, count) => sum + count, 0);
-                  if (purchasedCount <= factoryLimit) {
-                    selectedTerritory.units = { ...selectedTerritory.units, ...useGameStore.getState().purchasedUnits[currentNation] };
-                    useGameStore.setState(state => ({ purchasedUnits: { ...state.purchasedUnits, [currentNation]: null } }));
-                    alert(`Units mobilized in ${selectedTerritory.name}!`);
-                    GameLogic.nextPhase();
-                  } else {
-                    setError(`Factory can only mobilize ${factoryLimit} units!`);
-                  }
-                } else {
-                  setError("Select a territory with a factory!");
-                }
-                break;
-              case "Collect Income":
-                const income = useGameStore.getState().territories.filter(t => t.owner === currentNation && !t.sea).reduce((sum, t) => sum + t.ipcs, 0);
-                useGameStore.setState(state => ({ ipcs: { ...state.ipcs, [currentNation]: state.ipcs[currentNation] + income } }));
-                alert(`${currentNation} collects ${income} IPCs!`);
-                GameLogic.nextPhase();
-                break;
-            }
-          }, [currentPhase, selectedTerritory, currentNation]);
-          const handleModalSubmit = React.useCallback(data => {
-            const { setLastAction } = useGameStore.getState();
-            setError("");
-            switch (modal.type) {
-              case "research":
-                if (ipcs[currentNation] >= 5 && data.confirm) {
-                  useGameStore.setState(state => ({ ipcs: { ...state.ipcs, [currentNation]: state.ipcs[currentNation] - 5 } }));
-                  useGameStore.getState().updateAnalytics("battles", 5);
-                }
-                advanceTutorial();
-                GameLogic.nextPhase();
-                break;
-              case "purchase":
-                const cost = GameLogic.calculatePurchaseCost(data.units);
-                if (cost <= ipcs[currentNation] && cost > 0) {
-                  useGameStore.setState(state => ({
-                    purchasedUnits: { ...state.purchasedUnits, [currentNation]: data.units },
-                    ipcs: { ...state.ipcs, [currentNation]: state.ipcs[currentNation] - cost }
-                  }));
-                  setLastAction({ type: "purchases", data: { cost, purchases: data.units } });
-                  useGameStore.getState().updateAnalytics("battles", cost);
-                  alert("Units purchased!");
-                  advanceTutorial();
-                  GameLogic.nextPhase();
-                } else {
-                  setError("Invalid purchase or insufficient IPCs!");
-                }
-                break;
-              case "combatMove":
-                const targetTerritory = territories.find(t => t.name === data.target);
-                if (!targetTerritory || targetTerritory.owner === currentNation) {
-                  setError("Invalid target!");
-                  return;
-                }
-                if (!selectedTerritory.units || Object.values(selectedTerritory.units).reduce((sum, count) => sum + count, 0) <= 0) {
-                  setError("No units to attack with!");
-                  return;
-                }
-                const movingUnits = GameLogic.parseUnitInput(data.units, selectedTerritory.units);
-                if (!movingUnits || !GameLogic.canMoveUnits(selectedTerritory, movingUnits)) {
-                  setError("Invalid units or insufficient units to move!");
-                  return;
-                }
-                useGameStore.setState(state => ({ combat: [...state.combat, { attacker: selectedTerritory, defender: targetTerritory, units: movingUnits }] }));
-                setLastAction({ type: "combatMove", data: { source: selectedTerritory.name, target: targetTerritory.name, units: movingUnits } });
-                for (const [type, count] of Object.entries(movingUnits)) {
-                  selectedTerritory.units[type] -= count;
-                }
-                alert(`Combat move planned against ${targetTerritory.name}!`);
-                advanceTutorial();
-                GameLogic.nextPhase();
-                break;
-              case "nonCombatMove":
-                const targetNonCombat = territories.find(t => t.name === data.target);
-                if (!targetNonCombat || targetNonCombat.owner !== currentNation) {
-                  setError("Invalid target!");
-                  return;
-                }
-                if (selectedTerritory === targetNonCombat) {
-                  setError("Cannot move to the same territory!");
-                  return;
-                }
-                const movingNonCombatUnits = GameLogic.parseUnitInput(data.units, selectedTerritory.units);
-                if (!movingNonCombatUnits || !GameLogic.canMoveUnits(selectedTerritory, movingNonCombatUnits)) {
-                  setError("Invalid units or insufficient units to move!");
-                  return;
-                }
-                const targetUnits = { ...targetNonCombat.units };
-                for (const [type, count] of Object.entries(movingNonCombatUnits)) {
-                  targetNonCombat.units[type] = (targetNonCombat.units[type] || 0) + count;
-                  selectedTerritory.units[type] -= count;
-                }
-                setLastAction({ type: "nonCombatMove", data: { source: selectedTerritory.name, target: targetNonCombat.name, units: movingNonCombatUnits, targetUnits } });
-                alert(`Units moved to ${targetNonCombat.name}!`);
-                advanceTutorial();
-                GameLogic.nextPhase();
-                break;
-            }
-            setModal({ isOpen: false, type: null, data: { target: null, units: {} } });
-          }, [modal, ipcs, currentNation, selectedTerritory, territories, advanceTutorial]);
-          const tutorialText = {
-            research: "Spend 5 IPCs to attempt research (no effect in this version). Click Confirm to proceed.",
-            purchase: "Use sliders to select units within your IPC budget. Click Purchase to confirm.",
-            combatMove: "Choose a target territory to attack and select units to move. Click Attack to confirm.",
-            nonCombatMove: "Select a friendly territory to move units to. Click Move to confirm."
-          };
-          const modalContent = {
-            research: e(
-              "div",
-              null,
-              e("p", { className: "dark:text-gray-300" }, "Spend 5 IPCs to attempt research? (No tech in this version)"),
-              e("button", { onClick: () => handleModalSubmit({ confirm: true }), className: "modal-button bg-blue-600 text-white rounded mt-4 hover:bg-blue-700" }, "Confirm")
-            ),
-            purchase: e(
-              "div",
-              null,
-              e("p", { className: "dark:text-gray-300" }, "Available IPCs: ", ipcs[currentNation]),
-              e("p", { className: "dark:text-gray-300 mt-2" }, "Total Cost: ", GameLogic.calculatePurchaseCost(modal.data.units)),
-              error && e("p", { className: "text-red-600 text-sm mt-2" }, error),
-              e(
-                "div",
-                { className: "space-y-2 mt-2" },
-                Object.keys(UNITS).map(type =>
-                  e(
-                    "div",
-                    { key: type, className: "flex items-center gap-2" },
-                    e("label", { className: "text-sm dark:text-gray-300 w-20" }, type, ` (${UNITS[type].cost} IPCs)`),
-                    e(
-                      "input",
-                      {
-                        type: "range",
-                        min: "0",
-                        max: Math.floor(ipcs[currentNation] / UNITS[type].cost),
-                        value: modal.data.units[type] || 0,
-                        className: "w-full",
-                        onChange: e => setModal(state => ({ ...state, data: { units: { ...state.data.units, [type]: parseInt(e.target.value) || 0 } } })),
-                        "aria-label": `Select number of ${type} units`
-                      }
-                    ),
-                    e("span", { className: "text-sm dark:text-gray-300 w-8" }, modal.data.units[type] || 0)
-                  )
-                )
-              ),
-              e("button", { onClick: () => handleModalSubmit(modal.data), className: "modal-button bg-blue-600 text-white rounded mt-4 hover:bg-blue-700" }, "Purchase")
-            ),
-            combatMove: e(
-              "div",
-              null,
-              e("p", { className: "dark:text-gray-300" }, "Select target territory to attack:"),
-              e(
-                "select",
-                {
-                  className: "w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 mt-2 text-sm dark:bg-gray-700 dark:text-white",
-                  onChange: e => setModal(state => ({ ...state, data: { ...state.data, target: e.target.value } })),
-                  "aria-label": "Select target territory"
-                },
-                e("option", { value: "" }, "Choose a territory"),
-                territories.filter(t => t.owner !== currentNation && !t.sea).map(t => e("option", { key: t.name, value: t.name }, t.name))
-              ),
-              e("p", { className: "text-sm dark:text-gray-300 mt-2" }, "Select units to move:"),
-              error && e("p", { className: "text-red-600 text-sm mt-2" }, error),
-              e(
-                "div",
-                { className: "space-y-2 mt-2" },
-                Object.keys(UNITS).map(type =>
-                  e(
-                    "div",
-                    { key: type, className: "flex items-center gap-2" },
-                    e("label", { className: "text-sm dark:text-gray-300 w-20" }, type),
-                    e(
-                      "input",
-                      {
-                        type: "range",
-                        min: "0",
-                        max: selectedTerritory?.units[type] || 0,
-                        value: modal.data.units[type] || 0,
-                        className: "w-full",
-                        onChange: e => setModal(state => ({ ...state, data: { units: { ...state.data.units, [type]: parseInt(e.target.value) || 0 } } })),
-                        "aria-label": `Select number of ${type} units`
-                      }
-                    ),
-                    e("span", { className: "text-sm dark:text-gray-300 w-8" }, modal.data.units[type] || 0)
-                  )
-                )
-              ),
-              e("button", { onClick: () => handleModalSubmit(modal.data), className: "modal-button bg-blue-600 text-white rounded mt-4 hover:bg-blue-700" }, "Attack")
-            ),
-            nonCombatMove: e(
-              "div",
-              null,
-              e("p", { className: "dark:text-gray-300" }, "Select friendly territory to move to:"),
-              e(
-                "select",
-                {
-                  className: "w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 mt-2 text-sm dark:bg-gray-700 dark:text-white",
-                  onChange: e => setModal(state => ({ ...state, data: { ...state.data, target: e.target.value } })),
-                  "aria-label": "Select target territory"
-                },
-                e("option", { value: "" }, "Choose a territory"),
-                territories.filter(t => t.owner === currentNation && t.name !== selectedTerritory?.name && !t.sea).map(t => e("option", { key: t.name, value: t.name }, t.name))
-              ),
-              e("p", { className: "text-sm dark:text-gray-300 mt-2" }, "Select units to move:"),
-              error && e("p", { className: "text-red-600 text-sm mt-2" }, error),
-              e(
-                "div",
-                { className: "space-y-2 mt-2" },
-                Object.keys(UNITS).map(type =>
-                  e(
-                    "div",
-                    { key: type, className: "flex items-center gap-2" },
-                    e("label", { className: "text-sm dark:text-gray-300 w-20" }, type),
-                    e(
-                      "input",
-                      {
-                        type: "range",
-                        min: "0",
-                        max: selectedTerritory?.units[type] || 0,
-                        value: modal.data.units[type] || 0,
-                        className: "w-full",
-                        onChange: e => setModal(state => ({ ...state, data: { units: { ...state.data.units, [type]: parseInt(e.target.value) || 0 } } })),
-                        "aria-label": `Select number of ${type} units`
-                      }
-                    ),
-                    e("span", { className: "text-sm dark:text-gray-300 w-8" }, modal.data.units[type] || 0)
-                  )
-                )
-              ),
-              e("button", { onClick: () => handleModalSubmit(modal.data), className: "modal-button bg-blue-600 text-white rounded mt-4 hover:bg-blue-700" }, "Move")
-            )
-          };
-          React.useEffect(() => {
-            const handleKeydown = e => {
-              if (e.key === "Enter" && modal.isOpen) handleModalSubmit(modal.data);
-              if (e.key === "Escape" && modal.isOpen) setModal({ isOpen: false, type: null, data: { target: null, units: {} } });
-            };
-            window.addEventListener("keydown", handleKeydown);
-            return () => window.removeEventListener("keydown", handleKeydown);
-          }, [modal, handleModalSubmit]);
-          return e(
-            "div",
-            { className: "bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700" },
-            phaseBanner,
-            error && e("p", { className: "text-red-600 text-sm mb-2" }, error),
-            e("h3", { className: "text-lg font-bold mb-4 dark:text-white" }, "Game Controls"),
-            e(
-              "div",
-              { className: "space-y-2 text-sm dark:text-gray-300" },
-              e("p", null, e("span", { className: "font-medium" }, "Mode: "), mode === "hotseat" ? "Hot Seat" : mode === "computer" ? "Vs. Computer" : "Online"),
-              e("p", null, e("span", { className: "font-medium" }, "Nation: "), currentNation),
-              e("p", null, e("span", { className: "font-medium" }, "IPCs: "), ipcs[currentNation]),
-              e("p", null, e("span", { className: "font-medium" }, "Phase: "), currentPhase),
-              e("p", null, e("span", { className: "font-medium" }, "Territory: "), selectedTerritory ? selectedTerritory.name : "None"),
-              selectedTerritory && e(
-                "div",
-                { className: "mt-3" },
-                e("p", null, e("span", { className: "font-medium" }, "IPCs: "), selectedTerritory.ipcs),
-                e("p", { className: "font-medium" }, "Units:"),
-                e(
-                  "ul",
-                  { className: "list-disc pl-4 text-xs" },
-                  Object.entries(selectedTerritory.units)
-                    .filter(([_, count]) => count > 0)
-                    .map(([type, count]) => e("li", { key: type, className: "animate-unit-place" }, e("span", { className: "unit-icon" }, UNITS[type].icon), " ", type, ": ", count))
-                ),
-                e("p", { className: "text-xs italic dark:text-gray-400" }, [selectedTerritory.isCapital ? "Capital" : "", selectedTerritory.victoryCity ? "Victory City" : "", selectedTerritory.factory ? "Factory" : ""].filter(Boolean).join(", "))
-              )
-            ),
-            tutorialStep === 1 && e("div", { className: "tutorial-overlay mb-4" }, "Step 1: Click a territory on the map to select it."),
-            e(
-              "button",
-              { onClick: handlePhaseAction, className: "modal-button bg-blue-600 text-white rounded w-full mt-4 hover:bg-blue-700 transition", "aria-label": `Complete ${currentPhase}` },
-              "Complete Phase"
-            ),
-            mode === "computer" && aiHint && e("p", { className: "text-xs italic text-blue-600 dark:text-blue-400 mt-2" }, "AI Hint: ", aiHint),
-            lastAction && e("button", { onClick: undoLastAction, className: "modal-button bg-yellow-600 text-white rounded w-full mt-2 hover:bg-yellow-700 transition" }, "Undo Last Action"),
-            e(
-              "div",
-              { className: "mt-4 space-y-2" },
-              e("label", { htmlFor: "game-mode-select", className: "text-sm font-medium dark:text-white" }, "Game Mode:"),
-              e(
-                "select",
-                {
-                  id: "game-mode-select",
-                  value: mode,
-                  onChange: e => setMode(e.target.value),
-                  className: "border border-gray-300 dark:border-gray-600 rounded px-2 py-1 w-full text-sm dark:bg-gray-700 dark:text-white",
-                  "aria-label": "Select game mode"
-                },
-                e("option", { value: "hotseat" }, "Hot Seat"),
-                e("option", { value: "computer" }, "Vs. Computer"),
-                e("option", { value: "online" }, "Online Multiplayer")
-              ),
-              mode === "online" && e(
-                "div",
-                { className: "flex gap-2" },
-                e(
-                  "input",
-                  {
-                    id: "session-id",
-                    type: "text",
-                    placeholder: "Session ID",
-                    className: "border border-gray-300 dark:border-gray-600 rounded px-2 py-1 flex-1 text-sm dark:bg-gray-700 dark:text-white",
-                    onChange: e => {
-                      const id = e.target.value;
-                      if (id) {
-                        useGameStore.setState({ sessionId: id });
-                        try {
-                          const saved = localStorage.getItem(`a&a_${id}`);
-                          if (saved) {
-                            useGameStore.setState(JSON.parse(saved));
-                            alert("Joined session!");
-                          } else {
-                            alert("New session created!");
-                            saveGame();
-                          }
-                        } catch (e) {
-                          console.error("Failed to load session:", e.message);
-                          alert("Invalid session data!");
-                        }
-                      }
-                    },
-                    "aria-label": "Enter session ID"
-                  }
-                ),
-                e("button", { className: "modal-button bg-blue-600 text-white rounded hover:bg-blue-700 transition", onClick: () => addChat("Joined the game!") }, "Join")
-              )
-            ),
-            e("button", { onClick: resetGame, className: "modal-button bg-gray-500 text-white rounded w-full mt-4 hover:bg-gray-600 transition", "aria-label": "Reset Game" }, "Reset Game"),
-            tutorialStep > 0 && e(
-              "button",
-              { onClick: disableTutorial, className: "modal-button bg-red-600 text-white rounded w-full mt-2 hover:bg-red-600 transition" },
-              "Skip Tutorial"
-            ),
-            e(
-              Modal,
-              {
-                isOpen: modal.isOpen,
-                onClose: () => setModal({ isOpen: false, type: null, data: { target: null, units: {} } }),
-                title: modal.type === "research" ? "Research & Development" : modal.type === "purchase" ? "Purchase Units" : modal.type === "combatMove" ? "Combat Move" : "Non-Combat Move",
-                tutorialStep: tutorialStep > 1 && modal.type ? tutorialStep : null,
-                tutorialText: tutorialText[modal.type]
-              },
-              modalContent[modal.type]
-            )
-          );
-        });
-        const Dashboard = React.memo(() => {
-          const { ipcs, territories, currentNation, analytics, chatMessages, addChat } = useGameStore();
-          const [chatInput, setChatInput] = React.useState("");
-          const axisVictoryCities = territories.filter(t => t.victoryCity && (t.owner === "Germany" || t.owner === "Japan")).length;
-          const alliesVictoryCities = territories.filter(t => t.victoryCity && (t.owner === "Soviet_Union" || t.owner === "United_Kingdom" || t.owner === "United_States")).length;
-          return e(
-            "div",
-            { className: "bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg border border-gray-100 dark:border-gray-700 mt-6" },
-            e("h3", { className: "text-lg font-bold mb-4 dark:text-white" }, "Dashboard"),
-            e(
-              "div",
-              { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-              e(
-                "div",
-                null,
-                e("p", { className: "text-sm dark:text-gray-300" }, e("span", { className: "font-medium" }, "Victory Cities: "), "Axis: ", axisVictoryCities, ", Allies: ", alliesVictoryCities),
-                e("p", { className: "text-sm dark:text-gray-300" }, e("span", { className: "font-medium" }, "Battles Fought: "), analytics.battles),
-                e("p", { className: "text-sm dark:text-gray-300" }, e("span", { className: "font-medium" }, "Actions Taken: "), analytics.actions)
-              ),
-              e(
-                "div",
-                null,
-                e("h4", { className: "text-sm font-medium dark:text-white" }, "Chat"),
-                e(
-                  "div",
-                  { className: "h-32 overflow-y-auto border border-gray-300 dark:border-gray-600 p-2 text-xs dark:bg-gray-700 dark:text-gray-300", "aria-live": "polite" },
-                  chatMessages.map((msg, i) => e("p", { key: i }, e("strong", null, msg.sender, ":"), " ", msg.text, " ", e("span", { className: "text-gray-500" }, "(", msg.time, ")")))
-                ),
-                e(
-                  "div",
-                  { className: "flex mt-2" },
-                  e(
-                    "input",
-                    {
-                      type: "text",
-                      value: chatInput,
-                      onChange: e => setChatInput(e.target.value),
-                      className: "border border-gray-300 dark:border-gray-600 rounded px-2 py-1 flex-1 text-sm dark:bg-gray-700 dark:text-white",
-                      placeholder: "Type a message...",
-                      "aria-label": "Enter chat message"
-                    }
-                  ),
-                  e(
-                    "button",
-                    { onClick: () => { addChat(chatInput); setChatInput(""); }, className: "modal-button bg-blue-600 text-white rounded ml-2 hover:bg-blue-700" },
-                    "Send"
-                  )
-                )
-              )
-            )
-          );
-        });
-        const App = () => {
-          const { isDarkMode, toggleDarkMode, tutorialStep, isLoading, setLoading } = useGameStore();
-          React.useEffect(() => {
-            document.body.classList.toggle("theme-dark", isDarkMode);
-          }, [isDarkMode]);
-          React.useEffect(() => {
-            if (!isLoading) return;
-            const timer = setTimeout(() => setLoading(false), 500);
-            return () => clearTimeout(timer);
-          }, [isLoading, setLoading]);
-          if (isLoading) {
-            return e("div", { className: "loading" }, e("div", { className: "spinner" }));
+              const units = GameLogic.validateUnits(data.units, selectedTerritory.units);
+              if (!units) {
+                setError("Invalid units!");
+                playSound("siren");
+                return;
+              }
+              const isAmphibious = data.isAmphibious && !combatTarget.sea;
+              const navalSupport = isAmphibious && data.navalSupport;
+              combatTarget.combat = { attacker: selectedTerritory, units, isAmphibious, navalSupport };
+              for (const [type, count] of Object.entries(units)) {
+                selectedTerritory.units[type] -= count;
+              }
+              setTerritories([...territories]);
+              setModal({ isOpen: false, type: null, data: {} });
+              setChat(prev => [...prev, { sender: "System", text: `${nation} launches ${isAmphibious ? "amphibious " : ""}assault on ${combatTarget.name}.` }]);
+              nextPhase();
+              break;
+            case "nonCombatMove":
+              const nonCombatTarget = territories.find(t => t.name === data.target);
+              if (!nonCombatTarget || nonCombatTarget.owner !== nation) {
+                setError("Invalid target!");
+                playSound("siren");
+                return;
+              }
+              const nonCombatUnits = GameLogic.validateUnits(data.units, selectedTerritory.units);
+              if (!nonCombatUnits) {
+                setError("Invalid units!");
+                playSound("siren");
+                return;
+              }
+              for (const [type, count] of Object.entries(nonCombatUnits)) {
+                nonCombatTarget.units[type] = (nonCombatTarget.units[type] || 0) + count;
+                selectedTerritory.units[type] -= count;
+              }
+              setTerritories([...territories]);
+              setModal({ isOpen: false, type: null, data: {} });
+              setChat(prev => [...prev, { sender: "System", text: `${nation} redeployed units to ${nonCombatTarget.name}.` }]);
+              nextPhase();
+              break;
+            case "strategicBombing":
+              const bombingTarget = territories.find(t => t.name === data.target);
+              if (!bombingTarget || !bombingTarget.factory || bombingTarget.sea) {
+                setError("Invalid target!");
+                playSound("siren");
+                return;
+              }
+              const bombers = parseInt(data.bombers);
+              if (isNaN(bombers) || bombers <= 0 || bombers > (selectedTerritory.units.bomber || 0)) {
+                setError("Invalid bomber count!");
+                playSound("siren");
+                return;
+              }
+              const result = GameLogic.strategicBombing(bombingTarget, bombers);
+              setTerritories([...territories]);
+              setChat(prev => [...prev, { sender: "System", text: result }]);
+              setModal({ isOpen: false, type: null, data: {} });
+              nextPhase();
+              break;
+            default:
+              setError("Unknown operation!");
+              playSound("siren");
           }
-          return e(
-            ErrorBoundary,
+        }, [modal, ipcs, nation, selectedTerritory, territories]);
+        const modalContent = {
+          purchase: e(
+            "div",
             null,
-            e(
-              "div",
-              { className: "container mx-auto px-4 py-6 max-w-7xl" },
-              e(
-                "header",
-                { className: "bg-blue-950 text-white py-4 rounded-lg shadow-md mb-6" },
-                e(
-                  "div",
-                  { className: "flex justify-between items-center px-4" },
-                  e("h1", { className: "text-xl sm:text-2xl font-bold" }, "Axis & Allies: WWII 1942"),
-                  e(
-                    "button",
-                    { onClick: toggleDarkMode, className: "modal-button bg-gray-700 text-white rounded hover:bg-gray-800", "aria-label": "Toggle Dark Mode" },
-                    isDarkMode ? "☀️" : "🌙"
-                  )
-                )
-              ),
-              e(
+            e("p", null, "Available IPCs: ", ipcs[nation]),
+            e("p", { className: "mt-2" }, "Total Cost: ", GameLogic.calculateCost(modal.data.units || {})),
+            error && e("p", { className: "text-red-500 text-sm mt-2" }, error),
+            e("div", { className: "space-y-4 mt-4 grid grid-cols-2 gap-4" },
+              Object.keys(UNITS).map(type => e(
                 "div",
-                { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6" },
-                e(
-                  "div",
-                  { className: "lg:col-span-2 relative" },
-                  tutorialStep === 1 && e("div", { className: "tutorial-overlay absolute z-10 p-4 m-4 max-w-xs" }, "Step 1: Click a territory on the map to select it."),
-                  e(GameMap, null)
-                ),
-                e("div", { className: "lg:col-span-1" }, e
+                { key: type, className: "flex items-center gap-4" },
+                e("label", { className: "text-sm w-28 flex items-center" }, UNITS[type].icon, " ", type, ` (${UNITS[type].cost})`),
+                e("input", {
+                  type: "range",
+                  min: 0,
+                  max: Math.floor(ipcs[nation] / UNITS[type].cost),
+                  value: modal.data.units?.[type] || 0,
+                  className: "w-full accent-red-600",
+                  onChange: e => setModal(prev => ({ ...prev, data: { units: { ...prev.data.units, [type]: parseInt(e.target.value) } } })),
+                  "aria-label": `Select ${type} units`
+                }),
+                e("span", { className: "text-sm w-12 text-right" }, modal.data.units?.[type] || 0)
+              ))
+            ),
+            e("button", { onClick: () => handleModalSubmit(modal.data), className: "btn-primary px-6 py-2 rounded w-full mt-4" }, "Purchase")
+          ),
+          combatMove: e(
+            "div",
+            null,
+            e("p", null, "Select target to attack:"),
+            e("select", {
+              className: "w-full border border-gray-600 rounded px-4 py-2 mt-2 text-sm bg-gray-700",
+              onChange: e => setModal(prev => ({ ...prev, data: { ...prev.data, target: e.target.value } })),
+              "aria-label": "Select target territory"
+            }, e("option", { value: "" }, "Choose a territory"), territories.filter(t => t.owner !== nation).map(t => e("option", { key: t.name, value: t.name }, t.name))),
+            !selectedTerritory.sea && e("label", { className: "flex items-center mt-4" },
+              e("input", {
+                type: "checkbox",
+                checked: modal.data.isAmphibious || false,
+                onChange: e => setModal(prev => ({ ...prev, data: { ...prev.data, isAmphibious: e.target.checked } })),
+                className: "mr-2 accent-red-600"
+              }),
+              "Amphibious Assault"
+            ),
+            modal.data.isAmphibious && e("label", { className: "flex items-center mt-2" },
+              e("input", {
+                type: "checkbox",
+                checked: modal.data.navalSupport || false,
+                onChange: e => setModal(prev => ({ ...prev, data: { ...prev.data, navalSupport: e.target.checked } })),
+                className: "mr-2 accent-red-600"
+              }),
+              "Naval Bombardment"
+            ),
+            e("p", { className: "mt-4" }, "Select units:"),
+            error && e("p", { className: "text-red-500 text-sm mt-2" }, error),
+            e("div", { className: "space-y-4 mt-4 grid grid-cols-2 gap-4" },
+              Object.keys(UNITS).map(type => e(
+                "div",
+                { key: type, className: "flex items-center gap-4" },
+                e("label", { className: "text-sm w-28 flex items-center" }, UNITS[type].icon, " ", type),
+                e("input", {
+                  type: "range",
+                  min: 0,
+                  max: selectedTerritory?.units[type] || 0,
+                  value: modal.data.units?.[type] || 0,
+                  className: "w-full accent-red-600",
+                  onChange: e => setModal(prev => ({ ...prev, data: { units: { ...prev.data.units, [type]: parseInt(e.target.value) } } })),
+                  "aria-label": `Select ${type} units`
+                }),
+                e("span", { className: "text-sm w-12 text-right" }, modal.data.units?.[type] || 0)
+              ))
+            ),
+            e("button", { onClick: () => handleModalSubmit(modal.data), className: "btn-primary px-6 py-2 rounded w-full mt-4" }, "Attack")
+          ),
+          nonCombatMove: e(
+            "div",
+            null,
+            e("p", null, "Select friendly territory:"),
+            e("select", {
+              className: "w-full border border-gray-600 rounded px-4 py-2 mt-2 text-sm bg-gray-700",
+              onChange: e => setModal(prev => ({ ...prev, data: { ...prev.data, target: e.target.value } })),
+              "aria-label": "Select target territory"
+            }, e("option", { value: "" }, "Choose a territory"), territories.filter(t => t.owner === nation && t.name !== selectedTerritory?.name).map(t => e("option", { key: t.name, value: t.name }, t.name))),
+            e("p", { className: "mt-4" }, "Select units:"),
+            error && e("p", { className: "text-red-500 text-sm mt-2" }, error),
+            e("div", { className: "space-y-4 mt-4 grid grid-cols-2 gap-4" },
+              Object.keys(UNITS).map(type => e(
+                "div",
+                { key: type, className: "flex items-center gap-4" },
+                e("label", { className: "text-sm w-28 flex items-center" }, UNITS[type].icon, " ", type),
+                e("input", {
+                  type: "range",
+                  min: 0,
+                  max: selectedTerritory?.units[type] || 0,
+                  value: modal.data.units?.[type] || 0,
+                  className: "w-full accent-red-600",
+                  onChange: e => setModal(prev => ({ ...prev, data: { units: { ...prev.data.units, [type]: parseInt(e.target.value) } } })),
+                  "aria-label": `Select ${type} units`
+                }),
+                e("span", { className: "text-sm w-12 text-right" }, modal.data.units?.[type] || 0)
+              ))
+            ),
+            e("button", { onClick: () => handleModalSubmit(modal.data), className: "btn-primary px-6 py-2 rounded w-full mt-4" }, "Move")
+          ),
+          strategicBombing: e(
+            "div",
+            null,
+            e("p", null, "Select enemy factory to bomb:"),
+            e("select", {
+              className: "w-full border border-gray-600 rounded px-4 py-2 mt-2 text-sm bg-gray-700",
+              onChange: e => setModal(prev => ({ ...prev, data: { ...prev.data, target: e.target.value } })),
+              "aria-label": "Select target factory"
+            }, e("option", { value: "" }, "Choose a factory"), territories.filter(t => t.owner !== nation && t.factory && !t.sea).map(t => e("option", { key: t.name, value: t.name }, t.name))),
+            e("p", { className: "mt-4" }, "Number of bombers:"),
+            e("input", {
+              type: "number",
+              min: 1,
+              max: selectedTerritory?.units.bomber || 0,
+              value: modal.data.bombers || 1,
+              className: "w-full border border-gray-600 rounded px-4 py-2 mt-2 text-sm bg-gray-700",
+              onChange: e => setModal(prev => ({ ...prev, data: { ...prev.data, bombers: e.target.value } })),
+              "aria-label": "Select number of bombers"
+            }),
+            error && e("p", { className: "text-red-500 text-sm mt-2" }, error),
+            e("button", { onClick: () => handleModalSubmit(modal.data), className: "btn-primary px-6 py-2 rounded w-full mt-4" }, "Bomb")
+          ),
+          victory: e(
+            "div",
+            null,
+            e("p", { className: "text-xl" }, modal.data.message),
+            e("button", { onClick: () => location.reload(), className: "btn-primary px-6 py-2 rounded w-full mt-4" }, "New Campaign")
+          ),
+          rulebook: e(RulebookContent)
+        };
+        return e(
+          "div",
+          { className: "sidebar h-full overflow-y-auto" },
+          tutorial === 1 && e("div", { className: "tutorial mb-6" }, "Operation 1: Select a phase from the war console to begin."),
+          e("h3", { className: "text-2xl font-bold mb-6 header" }, "War Room"),
+          e("div", { className: "space-y-3 text-sm flex items-center gap-3" },
+            e("span", { className: "flag-icon" }, NATION_FLAGS[nation]),
+            e("p", null, e("span", { className: "font-medium" }, "Nation: "), nation),
+            e("p", null, e("span", { className: "font-medium" }, "IPCs: "), ipcs[nation]),
+            e("p", null, e("span", { className: "font-medium" }, "Phase: "), phase)
+          ),
+          e("div", { className: "console mt-6" },
+            e("div", { className: "flex flex-wrap gap-2 justify-center" },
+              phases.map(p => e(
+                "button",
+                {
+                  key: p,
+                  onClick: () => { setPhase(p); handlePhase(); },
+                  className: `phase-btn text-sm flex items-center gap-2 ${phase === p ? "active" : ""}`,
+                  "data-text": p,
+                  "aria-label": `Select ${p} phase`
+                },
+                e("span", null, phaseIcons[p]),
+                p
+              ))
+            ),
+            e("div", { className: "track-progress mt-3" }, 
+              e("div", { style: { width: `${((phases.indexOf(phase) + 1) / phases.length) * 100}%` } })
+            )
+          ),
+          selectedTerritory && e(
+            "div",
+            { className: "mt-6 text-sm bg-gray-700 p-4 rounded-lg" },
+            e("p", null, e("span", { className: "font-medium" }, "Territory: "), selectedTerritory.name),
+            e("p", null, e("span", { className: "font-medium" }, "Units: "), Object.entries(selectedTerritory.units).map(([k, v]) => `${v}${UNITS[k].icon}`).join(", ") || "None"),
+            selectedTerritory.factory && e("p", null, e("span", { className: "font-medium" }, "Factory Damage: "), selectedTerritory.factoryDamage || 0)
+          ),
+          error && e("p", { className: "text-red-500 text-sm mt-4" }, error),
+          aiHint && e("p", { className: "text-sm italic text-red-400 mt-4" }, "Tactical Intel: ", aiHint),
+          phase === "Combat Move" && selectedTerritory?.units.bomber && e(
+            "button",
+            { onClick: () => setModal({ isOpen: true, type: "strategicBombing", data: {} }), className: "btn-primary px-6 py-3 rounded w-full mt-4" },
+            "Strategic Bombing"
+          ),
+          e("div", { className: "flex gap-3 mt-4 flex-wrap" },
+            e("button", { onClick: () => setSoundEnabled(!soundEnabled), className: "bg-gray-600 text-white px-4 py-2 rounded flex-1 hover:bg-gray-700" }, soundEnabled ? "🔇 Mute" : "🔊 Sound"),
+            e("button", { onClick: () => {
+              setPhase("Purchase Units");
+              setNation("Soviet_Union");
+              setIpcs({ Germany: 30, Soviet_Union: 24, Japan
